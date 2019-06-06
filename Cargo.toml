@@ -15,6 +15,7 @@ toml = "^0.5.0"
 tokio-sync = "^0.1.5"
 tokio-process = "^0.2.3"
 tokio-threadpool = "^0.1.14"
+clap = "^2.33.0"
 
 [dependencies.tokio]
 version = "^0.1.20"
