@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use clap::{clap_app, crate_name, crate_version};
 
 use gitcop::cmd;
@@ -13,7 +15,13 @@ fn main() {
     )
     .get_matches();
 
-    let cfg = config::load_config(".gitcop.toml").unwrap();
+    let cfg = match config::load_config(".gitcop.toml") {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            eprintln!("Unable to load .gitcop.toml, {}", err);
+            exit(1)
+        }
+    };
     match matches.subcommand() {
         ("sync", Some(sub_m)) => {
             let names = sub_m
