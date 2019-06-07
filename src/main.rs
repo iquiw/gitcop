@@ -1,14 +1,15 @@
-use clap::clap_app;
+use clap::{clap_app, crate_name, crate_version};
 
 use gitcop::cmd;
 use gitcop::config;
 
 fn main() {
     let matches = clap_app!( myapp =>
-        (name: "gitcop")
-        (@subcommand sync =>
-         (about: "Sync repos")
-         (@arg REPO: ... "Name of repos"))
+      (name: crate_name!())
+      (version: crate_version!())
+      (@subcommand sync =>
+        (about: "Sync repos")
+        (@arg REPO: ... "Name of repos"))
     )
     .get_matches();
 
