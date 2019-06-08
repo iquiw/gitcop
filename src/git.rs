@@ -44,9 +44,9 @@ impl Git for GitCmd {
 
     fn pull(&self, dir: &Path) -> AsyncGitResult {
         let future = Command::new(&self.path)
+            .current_dir(dir)
             .arg("pull")
             .arg("--ff-only")
-            .arg(&dir)
             .output_async();
         process_output(dir, future)
     }
