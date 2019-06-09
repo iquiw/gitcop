@@ -79,7 +79,7 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
     }
     let cfgi = toml::from_str::<ConfigInternal>(s)?;
     let mut repo_map: HashMap<String, Repo> = HashMap::new();
-    for (key, val) in &cfgi.repos {
+    for (key, val) in &cfgi.repositories {
         let spec = match val {
             RepoSpec::Simple(s) => s,
             RepoSpec::Normal { type_, repo } => {
@@ -117,17 +117,17 @@ mod test {
     use crate::config::*;
     #[test]
     fn test_parse_config_normal_form() {
-        let s = r#"[repos]
+        let s = r#"[repositories]
 f.type = "github"
 f.repo = "rejeep/f.el"
 
 s = { type = "github", repo = "magnars/s.el" }
 
-[repos.use-package]
+[repositories.use-package]
 type = "github"
 repo = "jweigley"
 
-[repos.dash]
+[repositories.dash]
 type = "github"
 repo = "magnars/dash.el"
 "#;
@@ -156,7 +156,7 @@ repo = "magnars/dash.el"
 
     #[test]
     fn test_parse_config_simple_form() {
-        let s = r#"[repos]
+        let s = r#"[repositories]
 use-package = "jweigley"
 dash = "magnars/dash.el"
 "#;
@@ -175,7 +175,7 @@ dash = "magnars/dash.el"
 
     #[test]
     fn test_parse_config_invalid_repo() {
-        let s = r#"repos.foo = "bar/baz/foo""#;
+        let s = r#"repositories.foo = "bar/baz/foo""#;
         let result = parse_config(s);
 
         assert_eq!(result.is_err(), true);
@@ -187,7 +187,7 @@ dash = "magnars/dash.el"
 
     #[test]
     fn test_parse_config_unknown_type() {
-        let s = r#"repos.foo = { type = "bitbucket", repo = "bar/baz" }"#;
+        let s = r#"repositories.foo = { type = "bitbucket", repo = "bar/baz" }"#;
         let result = parse_config(s);
 
         assert_eq!(result.is_err(), true);

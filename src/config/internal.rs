@@ -14,5 +14,5 @@ pub enum RepoSpec {
 
 #[derive(Debug, Deserialize)]
 pub struct ConfigInternal {
-    pub repos: HashMap<String, RepoSpec>,
+    pub repositories: HashMap<String, RepoSpec>,
 }
