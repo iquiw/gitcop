@@ -7,7 +7,8 @@ use failure::{Error, Fail};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::config_internal::{ConfigInternal, RepoSpec};
+mod internal;
+use self::internal::{ConfigInternal, RepoSpec};
 
 #[derive(Debug, Fail)]
 enum ConfigError {
