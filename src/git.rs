@@ -57,8 +57,15 @@ fn process_output(dir: &Path, out: OutputAsync) -> AsyncGitResult {
     let future = out.map_err(|e| e.into()).and_then(|output| {
         let stdout = stdout();
         let mut handle = stdout.lock();
-        write!(&mut handle, "{}", String::from_utf8(output.stdout)?).unwrap();
-        write!(&mut handle, "{}", String::from_utf8(output.stderr)?).unwrap();
+        write!(
+            &mut handle,
+            "[{}] {}{}",
+            key,
+            String::from_utf8(output.stdout)?,
+            String::from_utf8(output.stderr)?
+        )
+        .unwrap();
+
         if output.status.success() {
             Ok(GitResult::Success(key))
         } else {
