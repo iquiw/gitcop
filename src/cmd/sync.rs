@@ -60,7 +60,7 @@ impl Future for BoundedSync {
 
 pub fn sync(cfg: &Config, names: &Vec<&str>) -> Result<(), Error> {
     let pool = Builder::new().build();
-    let sem = Arc::new(Semaphore::new(5));
+    let sem = Arc::new(Semaphore::new(10));
     let mut handles = vec![];
     let dirs: Vec<String> = if names.is_empty() {
         cfg.repos.keys().map(|s| s.to_string()).collect()
