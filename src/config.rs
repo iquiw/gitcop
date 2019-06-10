@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use failure::{Error, Fail};
 use lazy_static::lazy_static;
@@ -54,10 +54,15 @@ impl Remote for Repo {
 
 #[derive(Debug)]
 pub struct Config {
+    dir: Option<PathBuf>,
     pub repos: HashMap<String, Repo>,
 }
 
 impl Config {
+    pub fn dir(&self) -> Option<&PathBuf> {
+        self.dir.as_ref()
+    }
+
     pub fn get(&self, key: &str) -> Option<&Repo> {
         self.repos.get(key)
     }
@@ -78,6 +83,7 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
         static ref RE: Regex = Regex::new(r"^([^/]+)(?:/([^/]+))?$").unwrap();
     }
     let cfgi = toml::from_str::<ConfigInternal>(s)?;
+    let dir = cfgi.directory;
     let mut repo_map: HashMap<String, Repo> = HashMap::new();
     for (key, val) in &cfgi.repositories {
         let spec = match val {
@@ -109,7 +115,10 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
             }));
         }
     }
-    Ok(Config { repos: repo_map })
+    Ok(Config {
+        dir: dir.map(|d| PathBuf::from(d)),
+        repos: repo_map,
+    })
 }
 
 #[cfg(test)]
@@ -132,6 +141,8 @@ type = "github"
 repo = "magnars/dash.el"
 "#;
         let cfg = parse_config(s).unwrap();
+
+        assert_eq!(cfg.dir(), None);
 
         let opt1 = cfg.get("use-package");
         assert_eq!(opt1.is_some(), true);
@@ -162,6 +173,8 @@ dash = "magnars/dash.el"
 "#;
         let cfg = parse_config(s).unwrap();
 
+        assert_eq!(cfg.dir(), None);
+
         let opt1 = cfg.get("use-package");
         assert_eq!(opt1.is_some(), true);
         let repo1 = opt1.unwrap();
@@ -171,6 +184,22 @@ dash = "magnars/dash.el"
         assert_eq!(opt2.is_some(), true);
         let repo2 = opt2.unwrap();
         assert_eq!(repo2.url(), "https://github.com/magnars/dash.el.git");
+    }
+
+    #[test]
+    fn test_parse_config_with_directory() {
+        let s = r#"directory = "repos"
+[repositories]
+use-package = "jweigley"
+"#;
+        let cfg = parse_config(s).unwrap();
+
+        assert_eq!(cfg.dir(), Some(&PathBuf::from("repos")));
+
+        let opt1 = cfg.get("use-package");
+        assert_eq!(opt1.is_some(), true);
+        let repo1 = opt1.unwrap();
+        assert_eq!(repo1.url(), "https://github.com/jweigley/use-package.git");
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use std::env;
 use std::process::exit;
 
 use clap::{clap_app, crate_name, crate_version};
@@ -22,6 +23,12 @@ fn main() {
             exit(1)
         }
     };
+    if let Some(dir) = cfg.dir() {
+        if let Err(err) = env::set_current_dir(dir) {
+            eprintln!("Unable to change directory to \"{}\", {}", dir.display(), err);
+            exit(1)
+        }
+    }
     match matches.subcommand() {
         ("sync", Some(sub_m)) => {
             let names = sub_m
