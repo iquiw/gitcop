@@ -1,7 +1,7 @@
 use std::env;
 use std::process::exit;
 
-use clap::{clap_app, crate_name, crate_version};
+use clap::{clap_app, crate_name, crate_version, AppSettings};
 
 use gitcop::cmd;
 use gitcop::config;
@@ -10,6 +10,7 @@ fn main() {
     let matches = clap_app!( myapp =>
       (name: crate_name!())
       (version: crate_version!())
+      (setting: AppSettings::ArgRequiredElseHelp)
       (@subcommand sync =>
         (about: "Sync repos")
         (@arg REPO: ... "Name of repos"))
@@ -25,7 +26,11 @@ fn main() {
     };
     if let Some(dir) = cfg.dir() {
         if let Err(err) = env::set_current_dir(dir) {
-            eprintln!("Unable to change directory to \"{}\", {}", dir.display(), err);
+            eprintln!(
+                "Unable to change directory to \"{}\", {}",
+                dir.display(),
+                err
+            );
             exit(1)
         }
     }
@@ -39,6 +44,6 @@ fn main() {
                 eprintln!("gitcop: sync failed, Error: {}", err);
             }
         }
-        _ => eprintln!("{}", matches.usage()),
+        _ => {}
     }
 }
