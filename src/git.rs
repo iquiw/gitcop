@@ -2,6 +2,7 @@ use std::io::{stdout, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use ansi_term::Colour::{Green, Red};
 use failure::{err_msg, Error};
 use futures::Future;
 use tokio_process::{CommandExt, OutputAsync};
@@ -26,9 +27,7 @@ pub struct GitCmd {
 
 impl Default for GitCmd {
     fn default() -> Self {
-        GitCmd {
-            path: "git".into(),
-        }
+        GitCmd { path: "git".into() }
     }
 }
 
@@ -55,12 +54,14 @@ impl Git for GitCmd {
 fn process_output(dir: &Path, out: OutputAsync) -> AsyncGitResult {
     let key = dir.to_string_lossy().into_owned();
     let future = out.map_err(|e| e.into()).and_then(|output| {
+        let success = output.status.success();
+        let color = if success { Green } else { Red };
         let stdout = stdout();
         let mut handle = stdout.lock();
         write!(
             &mut handle,
             "[{}] {}{}",
-            key,
+            color.paint(&key),
             String::from_utf8(output.stdout)?,
             String::from_utf8(output.stderr)?
         )
