@@ -7,6 +7,7 @@ use gitcop::cmd;
 use gitcop::config;
 
 fn main() {
+    #[cfg(windows)]
     let _ignore = ansi_term::enable_ansi_support();
 
     let matches = clap_app!( myapp =>
