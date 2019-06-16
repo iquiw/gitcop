@@ -14,6 +14,7 @@ fn main() {
       (name: crate_name!())
       (version: crate_version!())
       (setting: AppSettings::ArgRequiredElseHelp)
+      (setting: AppSettings::ColorAuto)
       (@subcommand sync =>
         (about: "Sync repos")
         (@arg REPO: ... "Name of repos"))
