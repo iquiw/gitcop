@@ -2,6 +2,7 @@ use std::io::stdout;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use ansi_term::Colour::Red;
 use failure::Error;
 use futures::future::{self, Future};
 use futures::try_ready;
@@ -91,7 +92,7 @@ pub fn sync(cfg: &Config, names: &Vec<&str>) -> Result<(), Error> {
                         println!("\nThe following sync got error!");
                         has_error = true;
                     }
-                    println!("{}: {}", key, msg);
+                    println!("{}: {}", Red.paint(&key), msg);
                 }
             }
         })
