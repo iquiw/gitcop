@@ -7,6 +7,8 @@ use gitcop::cmd;
 use gitcop::config;
 
 fn main() {
+    let _ignore = ansi_term::enable_ansi_support();
+
     let matches = clap_app!( myapp =>
       (name: crate_name!())
       (version: crate_version!())
