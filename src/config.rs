@@ -69,15 +69,15 @@ impl Config {
         self.repos.get(key)
     }
 
-    pub fn repos<'a>(&'a self, names: &'a Vec<&'a str>) -> ReposIter<'a> {
-        if names.is_empty() {
-            ReposIter::All(ReposAll {
-                iter: self.repos.iter(),
-            })
-        } else {
+    pub fn repos<'a>(&'a self, names: Option<&'a Vec<&'a str>>) -> ReposIter<'a> {
+        if let Some(names) = names {
             ReposIter::Selected(ReposSelected {
                 cfg: self,
                 names: names.iter(),
+            })
+        } else {
+            ReposIter::All(ReposAll {
+                iter: self.repos.iter(),
             })
         }
     }

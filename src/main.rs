@@ -42,9 +42,8 @@ fn main() {
         ("sync", Some(sub_m)) => {
             let names = sub_m
                 .values_of("REPO")
-                .map(|vs| vs.collect())
-                .unwrap_or(vec![]);
-            if let Err(err) = cmd::sync(&cfg, &names) {
+                .map(|vs| vs.collect());
+            if let Err(err) = cmd::sync(&cfg, names.as_ref()) {
                 eprintln!("gitcop: sync failed, Error: {}", err);
             }
         }

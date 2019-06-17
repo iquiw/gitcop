@@ -58,7 +58,7 @@ impl Future for BoundedSync {
     }
 }
 
-pub fn sync(cfg: &Config, names: &Vec<&str>) -> Result<(), Error> {
+pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
     let pool = Builder::new().build();
     let sem = Arc::new(Semaphore::new(10));
     let mut handles = vec![];
