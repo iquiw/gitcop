@@ -1,8 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::fs::File;
-use std::io::Read;
+use std::io::{stdout, Read, Write};
 use std::path::{Path, PathBuf};
+use std::slice;
 
+use ansi_term::Colour::Red;
 use failure::{Error, Fail};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -55,7 +57,7 @@ impl Remote for Repo {
 #[derive(Debug)]
 pub struct Config {
     dir: Option<PathBuf>,
-    pub repos: HashMap<String, Repo>,
+    repos: HashMap<String, Repo>,
 }
 
 impl Config {
@@ -65,6 +67,55 @@ impl Config {
 
     pub fn get(&self, key: &str) -> Option<&Repo> {
         self.repos.get(key)
+    }
+
+    pub fn repos<'a>(&'a self, names: &'a Vec<&'a str>) -> ReposIter<'a> {
+        if names.is_empty() {
+            ReposIter::All(ReposAll {
+                iter: self.repos.iter(),
+            })
+        } else {
+            ReposIter::Selected(ReposSelected {
+                cfg: self,
+                names: names.iter(),
+            })
+        }
+    }
+}
+
+pub struct ReposAll<'a> {
+    iter: hash_map::Iter<'a, String, Repo>,
+}
+
+pub struct ReposSelected<'a> {
+    cfg: &'a Config,
+    names: slice::Iter<'a, &'a str>,
+}
+
+pub enum ReposIter<'a> {
+    Selected(ReposSelected<'a>),
+    All(ReposAll<'a>),
+}
+
+impl<'a> Iterator for ReposIter<'a> {
+    type Item = (&'a str, &'a Repo);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ReposIter::Selected(ReposSelected { cfg, names }) => {
+                while let Some(n) = names.next() {
+                    if let Some(repo) = cfg.repos.get(*n) {
+                        return Some((n, repo));
+                    } else {
+                        let stdout = stdout();
+                        let mut handle = stdout.lock();
+                        writeln!(&mut handle, "{}: Repo not found", Red.paint(*n)).unwrap();
+                    }
+                }
+                None
+            }
+            ReposIter::All(ReposAll { iter }) => iter.next().map(|(s, repo)| (s.as_ref(), repo)),
+        }
     }
 }
 

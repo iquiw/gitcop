@@ -1,4 +1,3 @@
-use std::io::stdout;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -63,24 +62,10 @@ pub fn sync(cfg: &Config, names: &Vec<&str>) -> Result<(), Error> {
     let pool = Builder::new().build();
     let sem = Arc::new(Semaphore::new(10));
     let mut handles = vec![];
-    let dirs: Vec<String> = if names.is_empty() {
-        cfg.repos.keys().map(|s| s.to_string()).collect()
-    } else {
-        names.into_iter().map(|s| s.to_string()).collect()
-    };
-    for dir in dirs {
-        match cfg.repos.get(&dir) {
-            Some(repo) => {
-                let sem = Arc::clone(&sem);
-                let path = Path::new(&dir);
-                handles.push(pool.spawn_handle(BoundedSync::new(&path, repo.clone(), sem)));
-            }
-            None => {
-                let stdout = stdout();
-                let mut handle = stdout.lock();
-                writeln!(&mut handle, "Repo not found: {}", dir).unwrap();
-            }
-        }
+    for (dir, repo) in cfg.repos(names) {
+        let sem = Arc::clone(&sem);
+        let path = Path::new(&dir);
+        handles.push(pool.spawn_handle(BoundedSync::new(&path, repo.clone(), sem)));
     }
     pool.shutdown_on_idle().wait().unwrap();
     future::join_all(handles)
