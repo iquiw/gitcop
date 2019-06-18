@@ -26,7 +26,19 @@ pub struct GitHub {
     pub project: String,
 }
 
-#[derive(Clone, Debug)]
+impl GitHub {
+    fn new<S>(user: S, project: S) -> Self
+    where
+        S: Into<String>,
+    {
+        GitHub {
+            user: user.into(),
+            project: project.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Repo {
     GitHub(GitHub),
 }
@@ -152,13 +164,10 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
         if let Some(cap) = RE.captures(&spec) {
             repo_map.insert(
                 key.to_string(),
-                Repo::GitHub(GitHub {
-                    user: cap.get(1).unwrap().as_str().to_string(),
-                    project: cap
-                        .get(2)
-                        .map(|m| m.as_str().to_string())
-                        .unwrap_or(key.to_string()),
-                }),
+                Repo::GitHub(GitHub::new(
+                    cap.get(1).unwrap().as_str(),
+                    cap.get(2).map(|m| m.as_str()).unwrap_or(key),
+                )),
             );
         } else {
             return Err(Error::from(ConfigError::InvalidRepo {
@@ -275,5 +284,72 @@ use-package = "jweigley"
             format!("{}", result.err().unwrap()),
             "unknown repo type: bitbucket"
         );
+    }
+
+    #[test]
+    fn test_config_repos_iter_none() {
+        let cfg = Config {
+            dir: None,
+            repos: HashMap::new(),
+        };
+        let mut iter = cfg.repos(None);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_config_repos_iter_one() {
+        let repo = Repo::GitHub(GitHub::new("foo", "bar"));
+        let mut repos = HashMap::new();
+        repos.insert("one".to_string(), repo.clone());
+        let cfg = Config { dir: None, repos };
+        let mut iter = cfg.repos(None);
+        assert_eq!(iter.next(), Some(("one", &repo)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_config_repos_iter_multiple() {
+        let repo1 = Repo::GitHub(GitHub::new("foo1", "bar1"));
+        let repo2 = Repo::GitHub(GitHub::new("foo2", "bar2"));
+        let repo3 = Repo::GitHub(GitHub::new("foo3", "bar3"));
+        let mut repos = HashMap::new();
+        repos.insert("one".to_string(), repo1.clone());
+        repos.insert("two".to_string(), repo2.clone());
+        repos.insert("three".to_string(), repo3.clone());
+        let cfg = Config { dir: None, repos };
+        let mut iter = cfg.repos(None);
+        assert_eq!(iter.next(), Some(("one", &repo1)));
+        assert_eq!(iter.next(), Some(("two", &repo2)));
+        assert_eq!(iter.next(), Some(("three", &repo3)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_config_repos_iter_none_selected() {
+        let cfg = Config {
+            dir: None,
+            repos: HashMap::new(),
+        };
+        let names = vec!["one"];
+        let mut iter = cfg.repos(Some(&names));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_config_repos_iter_multiple_selected() {
+        let repo1 = Repo::GitHub(GitHub::new("foo1", "bar1"));
+        let repo2 = Repo::GitHub(GitHub::new("foo2", "bar2"));
+        let repo3 = Repo::GitHub(GitHub::new("foo3", "bar3"));
+        let mut repos = HashMap::new();
+        repos.insert("one".to_string(), repo1.clone());
+        repos.insert("two".to_string(), repo2.clone());
+        repos.insert("three".to_string(), repo3.clone());
+        let cfg = Config { dir: None, repos };
+
+        let names = vec!["one", "three"];
+        let mut iter = cfg.repos(Some(&names));
+        assert_eq!(iter.next(), Some(("one", &repo1)));
+        assert_eq!(iter.next(), Some(("three", &repo3)));
+        assert_eq!(iter.next(), None);
     }
 }
