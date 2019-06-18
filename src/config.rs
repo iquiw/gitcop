@@ -1,6 +1,7 @@
 use std::collections::{hash_map, HashMap};
+use std::fmt;
 use std::fs::File;
-use std::io::{stdout, Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::slice;
 
@@ -109,24 +110,37 @@ pub enum ReposIter<'a> {
     All(ReposAll<'a>),
 }
 
+#[derive(Debug, Fail, PartialEq)]
+pub struct RepoNotFound {
+    name: String,
+}
+
+impl fmt::Display for RepoNotFound {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: Repo not found", Red.paint(&self.name))
+    }
+}
+
 impl<'a> Iterator for ReposIter<'a> {
-    type Item = (&'a str, &'a Repo);
+    type Item = Result<(&'a str, &'a Repo), RepoNotFound>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             ReposIter::Selected(ReposSelected { cfg, names }) => {
                 while let Some(n) = names.next() {
                     if let Some(repo) = cfg.repos.get(*n) {
-                        return Some((n, repo));
+                        return Some(Ok((n, repo)));
                     } else {
-                        let stdout = stdout();
-                        let mut handle = stdout.lock();
-                        writeln!(&mut handle, "{}: Repo not found", Red.paint(*n)).unwrap();
+                        return Some(Err(RepoNotFound {
+                            name: n.to_string(),
+                        }));
                     }
                 }
                 None
             }
-            ReposIter::All(ReposAll { iter }) => iter.next().map(|(s, repo)| (s.as_ref(), repo)),
+            ReposIter::All(ReposAll { iter }) => {
+                iter.next().map(|(s, repo)| Ok((s.as_ref(), repo)))
+            }
         }
     }
 }
@@ -303,7 +317,7 @@ use-package = "jweigley"
         repos.insert("one".to_string(), repo.clone());
         let cfg = Config { dir: None, repos };
         let mut iter = cfg.repos(None);
-        assert_eq!(iter.next(), Some(("one", &repo)));
+        assert_eq!(iter.next(), Some(Ok(("one", &repo))));
         assert_eq!(iter.next(), None);
     }
 
@@ -318,9 +332,9 @@ use-package = "jweigley"
         repos.insert("three".to_string(), repo3.clone());
         let cfg = Config { dir: None, repos };
         let mut iter = cfg.repos(None);
-        assert_eq!(iter.next(), Some(("one", &repo1)));
-        assert_eq!(iter.next(), Some(("two", &repo2)));
-        assert_eq!(iter.next(), Some(("three", &repo3)));
+        assert_eq!(iter.next(), Some(Ok(("one", &repo1))));
+        assert_eq!(iter.next(), Some(Ok(("two", &repo2))));
+        assert_eq!(iter.next(), Some(Ok(("three", &repo3))));
         assert_eq!(iter.next(), None);
     }
 
@@ -332,6 +346,12 @@ use-package = "jweigley"
         };
         let names = vec!["one"];
         let mut iter = cfg.repos(Some(&names));
+        assert_eq!(
+            iter.next(),
+            Some(Err(RepoNotFound {
+                name: "one".to_string()
+            }))
+        );
         assert_eq!(iter.next(), None);
     }
 
@@ -348,8 +368,8 @@ use-package = "jweigley"
 
         let names = vec!["one", "three"];
         let mut iter = cfg.repos(Some(&names));
-        assert_eq!(iter.next(), Some(("one", &repo1)));
-        assert_eq!(iter.next(), Some(("three", &repo3)));
+        assert_eq!(iter.next(), Some(Ok(("one", &repo1))));
+        assert_eq!(iter.next(), Some(Ok(("three", &repo3))));
         assert_eq!(iter.next(), None);
     }
 }
