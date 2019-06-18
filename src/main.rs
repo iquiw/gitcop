@@ -15,6 +15,8 @@ fn main() {
       (version: crate_version!())
       (setting: AppSettings::ArgRequiredElseHelp)
       (setting: AppSettings::ColorAuto)
+      (@subcommand list =>
+        (about: "List repos"))
       (@subcommand sync =>
         (about: "Sync repos")
         (@arg REPO: ... "Name of repos"))
@@ -39,6 +41,9 @@ fn main() {
         }
     }
     match matches.subcommand() {
+        ("list", _) => {
+            cmd::list(&cfg);
+        }
         ("sync", Some(sub_m)) => {
             let names = sub_m
                 .values_of("REPO")
