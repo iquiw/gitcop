@@ -1,4 +1,3 @@
-use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
@@ -7,6 +6,7 @@ use std::slice;
 
 use ansi_term::Colour::Red;
 use failure::{Error, Fail};
+use indexmap::{self, IndexMap};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -70,7 +70,7 @@ impl Remote for Repo {
 #[derive(Debug)]
 pub struct Config {
     dir: Option<PathBuf>,
-    repos: HashMap<String, Repo>,
+    repos: IndexMap<String, Repo>,
 }
 
 impl Config {
@@ -97,7 +97,7 @@ impl Config {
 }
 
 pub struct ReposAll<'a> {
-    iter: hash_map::Iter<'a, String, Repo>,
+    iter: indexmap::map::Iter<'a, String, Repo>,
 }
 
 pub struct ReposSelected<'a> {
@@ -161,7 +161,7 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
     }
     let cfgi = toml::from_str::<ConfigInternal>(s)?;
     let dir = cfgi.directory;
-    let mut repo_map: HashMap<String, Repo> = HashMap::new();
+    let mut repo_map: IndexMap<String, Repo> = IndexMap::new();
     for (key, val) in &cfgi.repositories {
         let spec = match val {
             RepoSpec::Simple(s) => s,
@@ -304,7 +304,7 @@ use-package = "jweigley"
     fn test_config_repos_iter_none() {
         let cfg = Config {
             dir: None,
-            repos: HashMap::new(),
+            repos: IndexMap::new(),
         };
         let mut iter = cfg.repos(None);
         assert_eq!(iter.next(), None);
@@ -313,7 +313,7 @@ use-package = "jweigley"
     #[test]
     fn test_config_repos_iter_one() {
         let repo = Repo::GitHub(GitHub::new("foo", "bar"));
-        let mut repos = HashMap::new();
+        let mut repos = IndexMap::new();
         repos.insert("one".to_string(), repo.clone());
         let cfg = Config { dir: None, repos };
         let mut iter = cfg.repos(None);
@@ -326,7 +326,7 @@ use-package = "jweigley"
         let repo1 = Repo::GitHub(GitHub::new("foo1", "bar1"));
         let repo2 = Repo::GitHub(GitHub::new("foo2", "bar2"));
         let repo3 = Repo::GitHub(GitHub::new("foo3", "bar3"));
-        let mut repos = HashMap::new();
+        let mut repos = IndexMap::new();
         repos.insert("one".to_string(), repo1.clone());
         repos.insert("two".to_string(), repo2.clone());
         repos.insert("three".to_string(), repo3.clone());
@@ -342,7 +342,7 @@ use-package = "jweigley"
     fn test_config_repos_iter_none_selected() {
         let cfg = Config {
             dir: None,
-            repos: HashMap::new(),
+            repos: IndexMap::new(),
         };
         let names = vec!["one"];
         let mut iter = cfg.repos(Some(&names));
@@ -360,7 +360,7 @@ use-package = "jweigley"
         let repo1 = Repo::GitHub(GitHub::new("foo1", "bar1"));
         let repo2 = Repo::GitHub(GitHub::new("foo2", "bar2"));
         let repo3 = Repo::GitHub(GitHub::new("foo3", "bar3"));
-        let mut repos = HashMap::new();
+        let mut repos = IndexMap::new();
         repos.insert("one".to_string(), repo1.clone());
         repos.insert("two".to_string(), repo2.clone());
         repos.insert("three".to_string(), repo3.clone());

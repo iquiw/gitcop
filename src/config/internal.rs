@@ -1,5 +1,6 @@
 use serde::Deserialize;
-use std::collections::HashMap;
+
+use indexmap::IndexMap;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -15,5 +16,5 @@ pub enum RepoSpec {
 #[derive(Debug, Deserialize)]
 pub struct ConfigInternal {
     pub directory: Option<String>,
-    pub repositories: HashMap<String, RepoSpec>,
+    pub repositories: IndexMap<String, RepoSpec>,
 }
