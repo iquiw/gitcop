@@ -2,47 +2,18 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::convert::TryFrom;
 use std::slice;
 
 use ansi_term::Colour::Red;
 use failure::{Error, Fail};
 use indexmap::{self, IndexMap};
-use lazy_static::lazy_static;
-use regex::Regex;
 
 mod internal;
-use self::internal::{ConfigInternal, RepoSpec};
-
-#[derive(Debug, Fail)]
-enum ConfigError {
-    #[fail(display = "invalid repo name: {}", name)]
-    InvalidRepo { name: String },
-    #[fail(display = "unknown repo type: {}", type_)]
-    UnknownType { type_: String },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct GitHub {
-    pub user: String,
-    pub project: String,
-}
-
-impl GitHub {
-    fn new<S>(user: S, project: S) -> Self
-    where
-        S: Into<String>,
-    {
-        GitHub {
-            user: user.into(),
-            project: project.into(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Repo {
-    GitHub(GitHub),
-}
+mod types;
+use self::internal::ConfigInternal;
+use self::types::GitHub;
+pub use self::types::Repo;
 
 pub trait Remote: std::fmt::Debug {
     fn url(&self) -> String;
@@ -156,38 +127,12 @@ where
 }
 
 pub fn parse_config(s: &str) -> Result<Config, Error> {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"^([^/]+)(?:/([^/]+))?$").unwrap();
-    }
     let cfgi = toml::from_str::<ConfigInternal>(s)?;
     let dir = cfgi.directory;
     let mut repo_map: IndexMap<String, Repo> = IndexMap::new();
     for (key, val) in &cfgi.repositories {
-        let spec = match val {
-            RepoSpec::Simple(s) => s,
-            RepoSpec::Normal { type_, repo } => {
-                if type_ == "github" {
-                    repo
-                } else {
-                    return Err(Error::from(ConfigError::UnknownType {
-                        type_: type_.to_string(),
-                    }));
-                }
-            }
-        };
-        if let Some(cap) = RE.captures(&spec) {
-            repo_map.insert(
-                key.to_string(),
-                Repo::GitHub(GitHub::new(
-                    cap.get(1).unwrap().as_str(),
-                    cap.get(2).map(|m| m.as_str()).unwrap_or(key),
-                )),
-            );
-        } else {
-            return Err(Error::from(ConfigError::InvalidRepo {
-                name: spec.to_string(),
-            }));
-        }
+        let repo = Repo::try_from((key.as_str(), val))?;
+        repo_map.insert(key.to_string(), repo);
     }
     Ok(Config {
         dir: dir.map(|d| PathBuf::from(d)),
