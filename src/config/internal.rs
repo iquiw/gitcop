@@ -32,6 +32,8 @@ pub enum RepoSpec {
 pub struct ConfigInternal {
     pub directory: Option<String>,
     pub repositories: IndexMap<String, RepoSpec>,
+    #[serde(rename = "optional-repositories")]
+    pub optional_repositories: Option<IndexMap<String, RepoSpec>>,
 }
 
 impl TryFrom<(&str, &RepoSpec)> for Repo {

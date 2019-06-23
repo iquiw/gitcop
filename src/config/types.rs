@@ -44,3 +44,26 @@ impl Remote for Repo {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum RepoKind {
+    Default(Repo),
+    Optional(Repo),
+}
+
+impl RepoKind {
+    pub fn repo(&self) -> &Repo {
+        match self {
+            RepoKind::Default(ref repo) => repo,
+            RepoKind::Optional(ref repo) => repo,
+        }
+    }
+}
+
+impl Remote for RepoKind {
+    fn url(&self) -> String {
+        match self {
+            RepoKind::Default(repo) => repo.url(),
+            RepoKind::Optional(repo) => repo.url(),
+        }
+    }
+}

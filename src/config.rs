@@ -12,23 +12,17 @@ use indexmap::{self, IndexMap};
 mod internal;
 mod types;
 use self::internal::ConfigInternal;
-pub use self::types::{GitHub, Remote, Repo};
-
-}
+pub use self::types::{GitHub, Remote, Repo, RepoKind};
 
 #[derive(Debug)]
 pub struct Config {
     dir: Option<PathBuf>,
-    repos: IndexMap<String, Repo>,
+    repos: IndexMap<String, RepoKind>,
 }
 
 impl Config {
     pub fn dir(&self) -> Option<&PathBuf> {
         self.dir.as_ref()
-    }
-
-    pub fn get(&self, key: &str) -> Option<&Repo> {
-        self.repos.get(key)
     }
 
     pub fn repos<'a>(&'a self, names: Option<&'a Vec<&'a str>>) -> ReposIter<'a> {
@@ -46,7 +40,7 @@ impl Config {
 }
 
 pub struct ReposAll<'a> {
-    iter: indexmap::map::Iter<'a, String, Repo>,
+    iter: indexmap::map::Iter<'a, String, RepoKind>,
 }
 
 pub struct ReposSelected<'a> {
@@ -71,7 +65,7 @@ impl fmt::Display for RepoNotFound {
 }
 
 impl<'a> Iterator for ReposIter<'a> {
-    type Item = Result<(&'a str, &'a Repo), RepoNotFound>;
+    type Item = Result<(&'a str, &'a RepoKind), RepoNotFound>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -80,9 +74,7 @@ impl<'a> Iterator for ReposIter<'a> {
                     if let Some(repo) = cfg.repos.get(*n) {
                         return Some(Ok((n, repo)));
                     } else {
-                        return Some(Err(RepoNotFound {
-                            name: n.to_string(),
-                        }));
+                        return Some(Err(RepoNotFound { name: n.to_string() }));
                     }
                 }
                 None
@@ -107,10 +99,16 @@ where
 pub fn parse_config(s: &str) -> Result<Config, Error> {
     let cfgi = toml::from_str::<ConfigInternal>(s)?;
     let dir = cfgi.directory;
-    let mut repo_map: IndexMap<String, Repo> = IndexMap::new();
+    let mut repo_map = IndexMap::new();
     for (key, val) in &cfgi.repositories {
         let repo = Repo::try_from((key.as_str(), val))?;
-        repo_map.insert(key.to_string(), repo);
+        repo_map.insert(key.to_string(), RepoKind::Default(repo));
+    }
+    if let Some(opt_repos) = &cfgi.optional_repositories {
+        for (key, val) in opt_repos {
+            let repo = Repo::try_from((key.as_str(), val))?;
+            repo_map.insert(key.to_string(), RepoKind::Optional(repo));
+        }
     }
     Ok(Config {
         dir: dir.map(|d| PathBuf::from(d)),
@@ -141,22 +139,22 @@ repo = "magnars/dash.el"
 
         assert_eq!(cfg.dir(), None);
 
-        let opt1 = cfg.get("use-package");
+        let opt1 = cfg.repos.get("use-package");
         assert_eq!(opt1.is_some(), true);
         let repo1 = opt1.unwrap();
         assert_eq!(repo1.url(), "https://github.com/jweigley/use-package.git");
 
-        let opt2 = cfg.get("dash");
+        let opt2 = cfg.repos.get("dash");
         assert_eq!(opt2.is_some(), true);
         let repo2 = opt2.unwrap();
         assert_eq!(repo2.url(), "https://github.com/magnars/dash.el.git");
 
-        let opt3 = cfg.get("f");
+        let opt3 = cfg.repos.get("f");
         assert_eq!(opt3.is_some(), true);
         let repo3 = opt3.unwrap();
         assert_eq!(repo3.url(), "https://github.com/rejeep/f.el.git");
 
-        let opt4 = cfg.get("s");
+        let opt4 = cfg.repos.get("s");
         assert_eq!(opt4.is_some(), true);
         let repo4 = opt4.unwrap();
         assert_eq!(repo4.url(), "https://github.com/magnars/s.el.git");
@@ -172,12 +170,12 @@ dash = "magnars/dash.el"
 
         assert_eq!(cfg.dir(), None);
 
-        let opt1 = cfg.get("use-package");
+        let opt1 = cfg.repos.get("use-package");
         assert_eq!(opt1.is_some(), true);
         let repo1 = opt1.unwrap();
         assert_eq!(repo1.url(), "https://github.com/jweigley/use-package.git");
 
-        let opt2 = cfg.get("dash");
+        let opt2 = cfg.repos.get("dash");
         assert_eq!(opt2.is_some(), true);
         let repo2 = opt2.unwrap();
         assert_eq!(repo2.url(), "https://github.com/magnars/dash.el.git");
@@ -193,10 +191,38 @@ use-package = "jweigley"
 
         assert_eq!(cfg.dir(), Some(&PathBuf::from("repos")));
 
-        let opt1 = cfg.get("use-package");
+        let opt1 = cfg.repos.get("use-package");
         assert_eq!(opt1.is_some(), true);
         let repo1 = opt1.unwrap();
         assert_eq!(repo1.url(), "https://github.com/jweigley/use-package.git");
+    }
+
+    #[test]
+    fn test_parse_config_with_optional_repos() {
+        let s = r#"[repositories]
+use-package = "jweigley"
+[optional-repositories]
+forge = "magit"
+magit = "magit"
+"#;
+        let cfg = parse_config(s).unwrap();
+
+        assert_eq!(cfg.dir(), None);
+
+        let opt1 = cfg.repos.get("use-package");
+        assert_eq!(opt1.is_some(), true);
+        let repo1 = opt1.unwrap();
+        assert_eq!(repo1.url(), "https://github.com/jweigley/use-package.git");
+
+        let opt2 = cfg.repos.get("magit");
+        assert_eq!(opt2.is_some(), true);
+        let repo2 = opt2.unwrap();
+        assert_eq!(repo2.url(), "https://github.com/magit/magit.git");
+
+        let opt3 = cfg.repos.get("forge");
+        assert_eq!(opt3.is_some(), true);
+        let repo3 = opt3.unwrap();
+        assert_eq!(repo3.url(), "https://github.com/magit/forge.git");
     }
 
     #[test]
@@ -233,31 +259,41 @@ use-package = "jweigley"
         assert_eq!(iter.next(), None);
     }
 
+    macro_rules! gh {
+        ($p:expr, $n:expr) => (RepoKind::Default(Repo::GitHub(GitHub::new($p, $n))));
+    }
+
     #[test]
     fn test_config_repos_iter_one() {
-        let repo = Repo::GitHub(GitHub::new("foo", "bar"));
+        let repo_kind = gh!("foo", "bar");
         let mut repos = IndexMap::new();
-        repos.insert("one".to_string(), repo.clone());
-        let cfg = Config { dir: None, repos };
+        repos.insert("one".to_string(), repo_kind.clone());
+        let cfg = Config {
+            dir: None,
+            repos,
+        };
         let mut iter = cfg.repos(None);
-        assert_eq!(iter.next(), Some(Ok(("one", &repo))));
+        assert_eq!(iter.next(), Some(Ok(("one", &repo_kind))));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn test_config_repos_iter_multiple() {
-        let repo1 = Repo::GitHub(GitHub::new("foo1", "bar1"));
-        let repo2 = Repo::GitHub(GitHub::new("foo2", "bar2"));
-        let repo3 = Repo::GitHub(GitHub::new("foo3", "bar3"));
+        let repo_kind1 = gh!("foo1", "bar1");
+        let repo_kind2 = gh!("foo2", "bar2");
+        let repo_kind3 = gh!("foo3", "bar3");
         let mut repos = IndexMap::new();
-        repos.insert("one".to_string(), repo1.clone());
-        repos.insert("two".to_string(), repo2.clone());
-        repos.insert("three".to_string(), repo3.clone());
-        let cfg = Config { dir: None, repos };
+        repos.insert("one".to_string(), repo_kind1.clone());
+        repos.insert("two".to_string(), repo_kind2.clone());
+        repos.insert("three".to_string(), repo_kind3.clone());
+        let cfg = Config {
+            dir: None,
+            repos,
+        };
         let mut iter = cfg.repos(None);
-        assert_eq!(iter.next(), Some(Ok(("one", &repo1))));
-        assert_eq!(iter.next(), Some(Ok(("two", &repo2))));
-        assert_eq!(iter.next(), Some(Ok(("three", &repo3))));
+        assert_eq!(iter.next(), Some(Ok(("one", &repo_kind1))));
+        assert_eq!(iter.next(), Some(Ok(("two", &repo_kind2))));
+        assert_eq!(iter.next(), Some(Ok(("three", &repo_kind3))));
         assert_eq!(iter.next(), None);
     }
 
@@ -280,19 +316,22 @@ use-package = "jweigley"
 
     #[test]
     fn test_config_repos_iter_multiple_selected() {
-        let repo1 = Repo::GitHub(GitHub::new("foo1", "bar1"));
-        let repo2 = Repo::GitHub(GitHub::new("foo2", "bar2"));
-        let repo3 = Repo::GitHub(GitHub::new("foo3", "bar3"));
+        let repo_kind1 = gh!("foo1", "bar1");
+        let repo_kind2 = gh!("foo2", "bar2");
+        let repo_kind3 = gh!("foo3", "bar3");
         let mut repos = IndexMap::new();
-        repos.insert("one".to_string(), repo1.clone());
-        repos.insert("two".to_string(), repo2.clone());
-        repos.insert("three".to_string(), repo3.clone());
-        let cfg = Config { dir: None, repos };
+        repos.insert("one".to_string(), repo_kind1.clone());
+        repos.insert("two".to_string(), repo_kind2.clone());
+        repos.insert("three".to_string(), repo_kind3.clone());
+        let cfg = Config {
+            dir: None,
+            repos,
+        };
 
         let names = vec!["one", "three"];
         let mut iter = cfg.repos(Some(&names));
-        assert_eq!(iter.next(), Some(Ok(("one", &repo1))));
-        assert_eq!(iter.next(), Some(Ok(("three", &repo3))));
+        assert_eq!(iter.next(), Some(Ok(("one", &repo_kind1))));
+        assert_eq!(iter.next(), Some(Ok(("three", &repo_kind3))));
         assert_eq!(iter.next(), None);
     }
 }
