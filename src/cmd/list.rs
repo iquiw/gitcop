@@ -13,7 +13,7 @@ pub fn list(cfg: &Config) {
             };
             let path = Path::new(dir);
             println!(
-                "{} {:<19}{}",
+                "{} {:<19} {}",
                 if path.is_dir() {
                     Green.paint("o")
                 } else {
