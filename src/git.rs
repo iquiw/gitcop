@@ -34,6 +34,8 @@ impl Default for GitCmd {
 impl Git for GitCmd {
     fn cloner(&self, dir: &Path, repo: &Repo) -> AsyncGitResult {
         let future = Command::new(&self.path)
+            .arg("-c")
+            .arg("color.ui=always")
             .arg("clone")
             .arg(repo.url())
             .arg(dir)
@@ -44,6 +46,8 @@ impl Git for GitCmd {
     fn pull(&self, dir: &Path) -> AsyncGitResult {
         let future = Command::new(&self.path)
             .current_dir(dir)
+            .arg("-c")
+            .arg("color.ui=always")
             .arg("pull")
             .arg("--ff-only")
             .output_async();
