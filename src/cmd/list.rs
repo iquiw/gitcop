@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::Path;
 
 use ansi_term::Colour::Green;
@@ -14,5 +15,25 @@ pub fn list(cfg: &Config) {
             };
             println!("{} {:<19} {}", Green.paint(mark), dir, repo.url());
         }
+    }
+}
+
+pub fn list_unknown(cfg: &Config) {
+    match fs::read_dir(".") {
+        Ok(rdir) => {
+            for result in rdir {
+                if let Ok(entry) = result {
+                    if !entry.path().is_dir() {
+                        continue;
+                    }
+                    let file_name = entry.file_name();
+                    let name = file_name.to_string_lossy();
+                    if !cfg.is_known(&name) && !name.starts_with(".") {
+                        println!("{}", name);
+                    }
+                }
+            }
+        }
+        Err(err) => eprintln!("Unable to read directory: {}", err),
     }
 }

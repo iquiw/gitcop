@@ -25,6 +25,10 @@ impl Config {
         self.dir.as_ref()
     }
 
+    pub fn is_known(&self, name: &str) -> bool {
+        self.repos.contains_key(name)
+    }
+
     pub fn repos<'a>(&'a self, names: Option<&'a Vec<&'a str>>) -> ReposIter<'a> {
         if let Some(names) = names {
             ReposIter::Selected(ReposSelected {
