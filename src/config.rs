@@ -12,12 +12,12 @@ use indexmap::{self, IndexMap};
 mod internal;
 mod types;
 use self::internal::ConfigInternal;
-pub use self::types::{GitHub, Remote, Repo, RepoKind};
+pub use self::types::{GitHub, Remote, Repo, Selection};
 
 #[derive(Debug)]
 pub struct Config {
     dir: Option<PathBuf>,
-    repos: IndexMap<String, RepoKind>,
+    repos: IndexMap<String, Selection<Repo>>,
 }
 
 impl Config {
@@ -40,7 +40,7 @@ impl Config {
 }
 
 pub struct ReposAll<'a> {
-    iter: indexmap::map::Iter<'a, String, RepoKind>,
+    iter: indexmap::map::Iter<'a, String, Selection<Repo>>,
 }
 
 pub struct ReposSelected<'a> {
@@ -65,22 +65,28 @@ impl fmt::Display for RepoNotFound {
 }
 
 impl<'a> Iterator for ReposIter<'a> {
-    type Item = Result<(&'a str, &'a RepoKind), RepoNotFound>;
+    type Item = Result<(&'a str, Selection<&'a Repo>), RepoNotFound>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            ReposIter::Selected(ReposSelected { cfg, names }) => {
-                while let Some(n) = names.next() {
-                    if let Some(repo) = cfg.repos.get(*n) {
-                        return Some(Ok((n, repo)));
+            ReposIter::Selected(repo_sel) => {
+                while let Some(n) = repo_sel.names.next() {
+                    if let Some(sel) = repo_sel.cfg.repos.get(*n) {
+                        if let Selection::Optional(repo) = sel {
+                            return Some(Ok((n, Selection::Explicit(repo))));
+                        } else {
+                            return Some(Ok((n, sel.as_ref())));
+                        }
                     } else {
-                        return Some(Err(RepoNotFound { name: n.to_string() }));
+                        return Some(Err(RepoNotFound {
+                            name: n.to_string(),
+                        }));
                     }
                 }
                 None
             }
             ReposIter::All(ReposAll { iter }) => {
-                iter.next().map(|(s, repo)| Ok((s.as_ref(), repo)))
+                iter.next().map(|(s, repo)| Ok((s.as_ref(), repo.as_ref())))
             }
         }
     }
@@ -102,12 +108,12 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
     let mut repo_map = IndexMap::new();
     for (key, val) in &cfgi.repositories {
         let repo = Repo::try_from((key.as_str(), val))?;
-        repo_map.insert(key.to_string(), RepoKind::Default(repo));
+        repo_map.insert(key.to_string(), Selection::Explicit(repo));
     }
     if let Some(opt_repos) = &cfgi.optional_repositories {
         for (key, val) in opt_repos {
             let repo = Repo::try_from((key.as_str(), val))?;
-            repo_map.insert(key.to_string(), RepoKind::Optional(repo));
+            repo_map.insert(key.to_string(), Selection::Optional(repo));
         }
     }
     Ok(Config {
@@ -260,40 +266,39 @@ magit = "magit"
     }
 
     macro_rules! gh {
-        ($p:expr, $n:expr) => (RepoKind::Default(Repo::GitHub(GitHub::new($p, $n))));
+        ($p:expr, $n:expr) => {
+            Selection::Explicit(Repo::GitHub(GitHub::new($p, $n)))
+        };
+        ($p:expr, $n:expr, o) => {
+            Selection::Optional(Repo::GitHub(GitHub::new($p, $n)))
+        };
     }
 
     #[test]
     fn test_config_repos_iter_one() {
-        let repo_kind = gh!("foo", "bar");
+        let select = gh!("foo", "bar");
         let mut repos = IndexMap::new();
-        repos.insert("one".to_string(), repo_kind.clone());
-        let cfg = Config {
-            dir: None,
-            repos,
-        };
+        repos.insert("one".to_string(), select.clone());
+        let cfg = Config { dir: None, repos };
         let mut iter = cfg.repos(None);
-        assert_eq!(iter.next(), Some(Ok(("one", &repo_kind))));
+        assert_eq!(iter.next(), Some(Ok(("one", select.as_ref()))));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn test_config_repos_iter_multiple() {
-        let repo_kind1 = gh!("foo1", "bar1");
-        let repo_kind2 = gh!("foo2", "bar2");
-        let repo_kind3 = gh!("foo3", "bar3");
+        let select1 = gh!("foo1", "bar1");
+        let select2 = gh!("foo2", "bar2");
+        let select3 = gh!("foo3", "bar3");
         let mut repos = IndexMap::new();
-        repos.insert("one".to_string(), repo_kind1.clone());
-        repos.insert("two".to_string(), repo_kind2.clone());
-        repos.insert("three".to_string(), repo_kind3.clone());
-        let cfg = Config {
-            dir: None,
-            repos,
-        };
+        repos.insert("one".to_string(), select1.clone());
+        repos.insert("two".to_string(), select2.clone());
+        repos.insert("three".to_string(), select3.clone());
+        let cfg = Config { dir: None, repos };
         let mut iter = cfg.repos(None);
-        assert_eq!(iter.next(), Some(Ok(("one", &repo_kind1))));
-        assert_eq!(iter.next(), Some(Ok(("two", &repo_kind2))));
-        assert_eq!(iter.next(), Some(Ok(("three", &repo_kind3))));
+        assert_eq!(iter.next(), Some(Ok(("one", select1.as_ref()))));
+        assert_eq!(iter.next(), Some(Ok(("two", select2.as_ref()))));
+        assert_eq!(iter.next(), Some(Ok(("three", select3.as_ref()))));
         assert_eq!(iter.next(), None);
     }
 
@@ -316,22 +321,59 @@ magit = "magit"
 
     #[test]
     fn test_config_repos_iter_multiple_selected() {
-        let repo_kind1 = gh!("foo1", "bar1");
-        let repo_kind2 = gh!("foo2", "bar2");
-        let repo_kind3 = gh!("foo3", "bar3");
+        let select1 = gh!("foo1", "bar1");
+        let select2 = gh!("foo2", "bar2");
+        let select3 = gh!("foo3", "bar3");
         let mut repos = IndexMap::new();
-        repos.insert("one".to_string(), repo_kind1.clone());
-        repos.insert("two".to_string(), repo_kind2.clone());
-        repos.insert("three".to_string(), repo_kind3.clone());
-        let cfg = Config {
-            dir: None,
-            repos,
-        };
+        repos.insert("one".to_string(), select1.clone());
+        repos.insert("two".to_string(), select2.clone());
+        repos.insert("three".to_string(), select3.clone());
+        let cfg = Config { dir: None, repos };
 
         let names = vec!["one", "three"];
         let mut iter = cfg.repos(Some(&names));
-        assert_eq!(iter.next(), Some(Ok(("one", &repo_kind1))));
-        assert_eq!(iter.next(), Some(Ok(("three", &repo_kind3))));
+        assert_eq!(iter.next(), Some(Ok(("one", select1.as_ref()))));
+        assert_eq!(iter.next(), Some(Ok(("three", select3.as_ref()))));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_config_repos_iter_optional_none_selected() {
+        let select1 = gh!("foo1", "bar1", o);
+        let select2 = gh!("foo2", "bar2", o);
+        let select3 = gh!("foo3", "bar3", o);
+        let mut repos = IndexMap::new();
+        repos.insert("one".to_string(), select1.clone());
+        repos.insert("two".to_string(), select2.clone());
+        repos.insert("three".to_string(), select3.clone());
+        let cfg = Config { dir: None, repos };
+
+        let mut iter = cfg.repos(None);
+        assert_eq!(iter.next(), Some(Ok(("one", select1.as_ref()))));
+        assert_eq!(iter.next(), Some(Ok(("two", select2.as_ref()))));
+        assert_eq!(iter.next(), Some(Ok(("three", select3.as_ref()))));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_config_repos_iter_optional_multiple_selected() {
+        let select1 = gh!("foo1", "bar1", o);
+        let select2 = gh!("foo2", "bar2", o);
+        let select3 = gh!("foo3", "bar3", o);
+        let mut repos = IndexMap::new();
+        repos.insert("one".to_string(), select1.clone());
+        repos.insert("two".to_string(), select2.clone());
+        repos.insert("three".to_string(), select3.clone());
+        let cfg = Config { dir: None, repos };
+
+        let names = vec!["two", "three"];
+        let mut iter = cfg.repos(Some(&names));
+        // changed to RepoKind::Selected
+        assert_eq!(iter.next(), Some(Ok(("two", gh!("foo2", "bar2").as_ref()))));
+        assert_eq!(
+            iter.next(),
+            Some(Ok(("three", gh!("foo3", "bar3").as_ref())))
+        );
         assert_eq!(iter.next(), None);
     }
 }

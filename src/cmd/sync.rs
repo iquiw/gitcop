@@ -11,7 +11,7 @@ use tokio::prelude::*;
 use tokio_sync::semaphore::{Permit, Semaphore};
 use tokio_threadpool::Builder;
 
-use crate::config::{Config, Repo, RepoKind};
+use crate::config::{Config, Repo, Selection};
 use crate::git::{AsyncGitResult, Git, GitCmd, GitResult};
 
 struct BoundedSync {
@@ -65,10 +65,10 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
     let mut handles = vec![];
     for result in cfg.repos(names) {
         match result {
-            Ok((dir, repo_kind)) => {
-                let repo = match repo_kind {
-                    RepoKind::Default(repo) => repo,
-                    RepoKind::Optional(repo) => {
+            Ok((dir, select)) => {
+                let repo = match select {
+                    Selection::Explicit(repo) => repo,
+                    Selection::Optional(repo) => {
                         if Path::new(dir).is_dir() {
                             repo
                         } else {

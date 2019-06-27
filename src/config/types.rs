@@ -45,25 +45,32 @@ impl Remote for Repo {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RepoKind {
-    Default(Repo),
-    Optional(Repo),
+pub enum Selection<T> {
+    Explicit(T),
+    Optional(T),
 }
 
-impl RepoKind {
-    pub fn repo(&self) -> &Repo {
+impl<T> Selection<T> {
+    pub fn repo(&self) -> &T {
         match self {
-            RepoKind::Default(ref repo) => repo,
-            RepoKind::Optional(ref repo) => repo,
+            Selection::Explicit(ref x) => x,
+            Selection::Optional(ref x) => x,
+        }
+    }
+
+    pub fn as_ref(&self) -> Selection<&T> {
+        match self {
+            Selection::Explicit(ref x) => Selection::Explicit(x),
+            Selection::Optional(ref x) => Selection::Optional(x),
         }
     }
 }
 
-impl Remote for RepoKind {
+impl Remote for Selection<Repo> {
     fn url(&self) -> String {
         match self {
-            RepoKind::Default(repo) => repo.url(),
-            RepoKind::Optional(repo) => repo.url(),
+            Selection::Explicit(repo) => repo.url(),
+            Selection::Optional(repo) => repo.url(),
         }
     }
 }
