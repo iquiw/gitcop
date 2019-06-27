@@ -5,13 +5,25 @@ use ansi_term::Colour::Green;
 
 use crate::config::{Config, Remote, Selection};
 
-pub fn list(cfg: &Config) {
+pub fn list(cfg: &Config, default: bool, optional: bool) {
     for result in cfg.repos(None) {
         if let Ok((dir, select)) = result {
             let exist = Path::new(dir).is_dir();
             let (mark, repo) = match select {
-                Selection::Explicit(repo) => (if exist { "*" } else { "-" }, repo),
-                Selection::Optional(repo) => (if exist { "o" } else { " " }, repo),
+                Selection::Explicit(repo) => {
+                    if !default {
+                        continue;
+                    } else {
+                        (if exist { "*" } else { "-" }, repo)
+                    }
+                }
+                Selection::Optional(repo) => {
+                    if !optional {
+                        continue;
+                    } else {
+                        (if exist { "o" } else { " " }, repo)
+                    }
+                }
             };
             println!("{} {:<19} {}", Green.paint(mark), dir, repo.url());
         }

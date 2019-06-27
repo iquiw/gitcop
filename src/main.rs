@@ -17,6 +17,8 @@ fn main() {
       (setting: AppSettings::ColorAuto)
       (@subcommand list =>
         (about: "List repos")
+        (@arg default: -d --default "List default repositories only")
+        (@arg optional: -o --optional "List optional repositories only")
         (@arg unknown: -u --unknown "List unknown directories")
       )
       (@subcommand sync =>
@@ -47,7 +49,13 @@ fn main() {
             if sub_m.is_present("unknown") {
                 cmd::list_unknown(&cfg);
             } else {
-                cmd::list(&cfg);
+                let mut default = sub_m.is_present("default");
+                let mut optional = sub_m.is_present("optional");
+                if !default && !optional {
+                    default = true;
+                    optional = true;
+                }
+                cmd::list(&cfg, default, optional);
             }
         }
         ("sync", Some(sub_m)) => {
