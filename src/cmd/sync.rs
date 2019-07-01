@@ -22,7 +22,11 @@ struct BoundedSync {
 impl BoundedRun for BoundedSync {
     fn run(&self) -> AsyncGitResult {
         let git = GitCmd::default();
-        sync_one(&self.dir, &self.repo, &git)
+        if self.dir.is_dir() {
+            git.pull(&self.dir)
+        } else {
+            git.cloner(&self.dir, &self.repo)
+        }
     }
 }
 
@@ -77,12 +81,4 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
         .wait()
         .unwrap();
     Ok(())
-}
-
-pub fn sync_one(dir: &Path, repo: &Repo, git: &Git) -> AsyncGitResult {
-    if dir.is_dir() {
-        git.pull(dir)
-    } else {
-        git.cloner(dir, &repo)
-    }
 }
