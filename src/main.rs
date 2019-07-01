@@ -19,8 +19,10 @@ fn main() {
         (about: "List repos")
         (@arg default: -d --default "List default repositories only")
         (@arg optional: -o --optional "List optional repositories only")
-        (@arg unknown: -u --unknown "List unknown directories")
-      )
+        (@arg unknown: -u --unknown "List unknown directories"))
+      (@subcommand pull =>
+        (about: "Pull in directories")
+        (@arg DIR: +required ... "Directories to be pulled"))
       (@subcommand sync =>
         (about: "Sync repos")
         (@arg REPO: ... "Name of repos"))
@@ -56,6 +58,11 @@ fn main() {
                     optional = true;
                 }
                 cmd::list(&cfg, default, optional);
+            }
+        }
+        ("pull", Some(sub_m)) => {
+            if let Some(dirs) = sub_m.values_of("DIR") {
+                cmd::pull(dirs);
             }
         }
         ("sync", Some(sub_m)) => {
