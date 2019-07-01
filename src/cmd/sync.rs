@@ -5,57 +5,24 @@ use std::sync::Arc;
 use ansi_term::Colour::Red;
 use failure::Error;
 use futures::future::{self, Future};
-use futures::try_ready;
 use tokio;
 use tokio::prelude::*;
-use tokio_sync::semaphore::{Permit, Semaphore};
+use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
 
+use super::common::{BoundedProc, BoundedRun};
 use crate::config::{Config, Repo, Selection};
 use crate::git::{AsyncGitResult, Git, GitCmd, GitResult};
 
 struct BoundedSync {
-    semaphore: Arc<Semaphore>,
     dir: PathBuf,
     repo: Repo,
-    inner: Option<AsyncGitResult>,
-    permit: Permit,
 }
 
-impl BoundedSync {
-    fn new(dir: &Path, repo: Repo, semaphore: Arc<Semaphore>) -> Self {
-        BoundedSync {
-            semaphore,
-            dir: dir.to_path_buf(),
-            repo,
-            inner: None,
-            permit: Permit::new(),
-        }
-    }
-}
-
-impl Future for BoundedSync {
-    type Item = GitResult;
-    type Error = Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        if !self.permit.is_acquired() {
-            try_ready!(self.permit.poll_acquire(&self.semaphore));
-        }
-        let ready = match self.inner {
-            Some(ref mut inner) => inner.poll()?,
-            None => {
-                let git = GitCmd::default();
-                let mut inner = sync_one(&self.dir, &self.repo, &git);
-                let ready = inner.poll()?;
-                self.inner = Some(inner);
-                ready
-            }
-        };
-        if ready.is_ready() {
-            self.permit.release(&self.semaphore);
-        }
-        Ok(ready)
+impl BoundedRun for BoundedSync {
+    fn run(&self) -> AsyncGitResult {
+        let git = GitCmd::default();
+        sync_one(&self.dir, &self.repo, &git)
     }
 }
 
@@ -78,7 +45,13 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
                 };
                 let sem = Arc::clone(&sem);
                 let path = Path::new(&dir);
-                handles.push(pool.spawn_handle(BoundedSync::new(&path, repo.clone(), sem)));
+                handles.push(pool.spawn_handle(BoundedProc::new(
+                    BoundedSync {
+                        dir: path.to_path_buf(),
+                        repo: repo.clone(),
+                    },
+                    sem,
+                )));
             }
             Err(err) => {
                 let stdout = stdout();
