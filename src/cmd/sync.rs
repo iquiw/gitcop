@@ -79,6 +79,4 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
             }
         })
         .wait()
-        .unwrap();
-    Ok(())
 }

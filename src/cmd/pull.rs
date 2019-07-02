@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ansi_term::Colour::Red;
+use failure::Error;
 use futures::future::{self, Future};
 use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
@@ -21,7 +22,7 @@ impl BoundedRun for BoundedPull {
     }
 }
 
-pub fn pull<'a, I>(dirs: I)
+pub fn pull<'a, I>(dirs: I) -> Result<(), Error>
 where
     I: Iterator<Item = &'a str>,
 {
@@ -59,5 +60,4 @@ where
             }
         })
         .wait()
-        .unwrap();
 }

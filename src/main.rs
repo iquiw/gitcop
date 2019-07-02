@@ -49,7 +49,7 @@ fn main() {
     match matches.subcommand() {
         ("list", Some(sub_m)) => {
             if sub_m.is_present("unknown") {
-                cmd::list_unknown(&cfg);
+                cmd::list_unknown(&cfg)
             } else {
                 let mut default = sub_m.is_present("default");
                 let mut optional = sub_m.is_present("optional");
@@ -57,20 +57,27 @@ fn main() {
                     default = true;
                     optional = true;
                 }
-                cmd::list(&cfg, default, optional);
+                cmd::list(&cfg, default, optional)
             }
         }
         ("pull", Some(sub_m)) => {
             if let Some(dirs) = sub_m.values_of("DIR") {
-                cmd::pull(dirs);
+                cmd::pull(dirs)
+            } else {
+                Ok(())
             }
         }
         ("sync", Some(sub_m)) => {
             let names = sub_m.values_of("REPO").map(|vs| vs.collect());
-            if let Err(err) = cmd::sync(&cfg, names.as_ref()) {
-                eprintln!("gitcop: sync failed, Error: {}", err);
-            }
+            cmd::sync(&cfg, names.as_ref())
         }
-        _ => {}
+        _ => Ok(()),
     }
+    .unwrap_or_else(|err| {
+        eprintln!(
+            "gitcop: {} failed, Error: {}",
+            matches.subcommand_name().unwrap_or("unknown"),
+            err
+        );
+    })
 }
