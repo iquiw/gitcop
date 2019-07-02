@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use ansi_term::Colour::Green;
-use failure::Error;
+use failure::{Error, ResultExt};
 
 use crate::config::{Config, Remote, Selection};
 
@@ -33,7 +33,7 @@ pub fn list(cfg: &Config, default: bool, optional: bool) -> Result<(), Error> {
 }
 
 pub fn list_unknown(cfg: &Config) -> Result<(), Error> {
-    let rdir = fs::read_dir(".")?;
+    let rdir = fs::read_dir(".").with_context(|e| format!("Unable to read directory, {}", e))?;
     for result in rdir {
         if let Ok(entry) = result {
             if !entry.path().is_dir() {
