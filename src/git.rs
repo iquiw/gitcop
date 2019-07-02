@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ansi_term::Colour::{Green, Red};
-use failure::{err_msg, Error};
+use failure::{format_err, Error};
 use futures::Future;
 use tokio_process::{CommandExt, OutputAsync};
 
@@ -74,7 +74,7 @@ fn process_output(dir: &Path, out: OutputAsync) -> AsyncGitResult {
         if output.status.success() {
             Ok(GitResult::Success(key))
         } else {
-            Ok(GitResult::Error(key, err_msg(format!("{}", output.status))))
+            Ok(GitResult::Error(key, format_err!("{}", output.status)))
         }
     });
     Box::new(future)
