@@ -2,7 +2,6 @@ use std::io::{stdout, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ansi_term::Colour::Red;
 use failure::Error;
 use futures::future::{self, Future};
 use tokio_sync::semaphore::Semaphore;
@@ -10,6 +9,7 @@ use tokio_threadpool::Builder;
 
 use super::common::{BoundedProc, BoundedRun};
 use crate::git::{AsyncGitResult, Git, GitCmd, GitResult};
+use crate::print;
 
 struct BoundedPull {
     dir: PathBuf,
@@ -35,7 +35,7 @@ where
         if !path.is_dir() {
             let stdout = stdout();
             let mut handle = stdout.lock();
-            writeln!(&mut handle, "{}: No such directory", Red.paint(dir)).unwrap();
+            writeln!(&mut handle, "{}: No such directory", print::warn(dir)).unwrap();
             continue;
         }
         handles.push(pool.spawn_handle(BoundedProc::new(
@@ -55,7 +55,7 @@ where
                         println!("\nThe following pull got error!");
                         has_error = true;
                     }
-                    println!("{}: {}", Red.paint(&key), msg);
+                    println!("{}: {}", print::warn(&key), msg);
                 }
             }
         })

@@ -5,10 +5,10 @@ use clap::{clap_app, crate_name, crate_version, AppSettings};
 
 use gitcop::cmd;
 use gitcop::config;
+use gitcop::print;
 
 fn main() {
-    #[cfg(windows)]
-    let _ignore = ansi_term::enable_ansi_support();
+    print::color_init();
 
     let matches = clap_app!(myapp =>
       (name: crate_name!())

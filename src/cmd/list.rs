@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use ansi_term::Colour::Green;
 use failure::{Error, ResultExt};
 
 use crate::config::{Config, Remote, Selection};
+use crate::print;
 
 pub fn list(cfg: &Config, default: bool, optional: bool) -> Result<(), Error> {
     for result in cfg.repos(None) {
@@ -26,7 +26,7 @@ pub fn list(cfg: &Config, default: bool, optional: bool) -> Result<(), Error> {
                     }
                 }
             };
-            println!("{} {:<19} {}", Green.paint(mark), dir, repo.url());
+            println!("{} {:<19} {}", print::good(mark), dir, repo.url());
         }
     }
     Ok(())

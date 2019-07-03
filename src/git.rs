@@ -2,12 +2,12 @@ use std::io::{stdout, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use ansi_term::Colour::{Green, Red};
 use failure::{format_err, Error};
 use futures::Future;
 use tokio_process::{CommandExt, OutputAsync};
 
 use crate::config::{Remote, Repo};
+use crate::print;
 
 pub trait Git {
     fn cloner(&self, dir: &Path, repo: &Repo) -> AsyncGitResult;
@@ -59,13 +59,13 @@ fn process_output(dir: &Path, out: OutputAsync) -> AsyncGitResult {
     let key = dir.to_string_lossy().into_owned();
     let future = out.map_err(|e| e.into()).and_then(|output| {
         let success = output.status.success();
-        let color = if success { Green } else { Red };
+        let colorize = if success { print::good } else { print::warn };
         let stdout = stdout();
         let mut handle = stdout.lock();
         write!(
             &mut handle,
             "[{}] {}{}",
-            color.paint(&key),
+            colorize(&key),
             String::from_utf8(output.stdout)?,
             String::from_utf8(output.stderr)?
         )

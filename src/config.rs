@@ -5,7 +5,6 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::slice;
 
-use ansi_term::Colour::Red;
 use failure::{Error, Fail};
 use indexmap::{self, IndexMap};
 
@@ -13,6 +12,7 @@ mod internal;
 mod types;
 use self::internal::ConfigInternal;
 pub use self::types::{GitHub, Remote, Repo, Selection};
+use crate::print;
 
 #[derive(Debug)]
 pub struct Config {
@@ -64,7 +64,7 @@ pub struct RepoNotFound {
 
 impl fmt::Display for RepoNotFound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}: Repo not found", Red.paint(&self.name))
+        write!(f, "{}: Repo not found", print::warn(&self.name))
     }
 }
 

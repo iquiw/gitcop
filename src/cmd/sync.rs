@@ -2,7 +2,6 @@ use std::io::stdout;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ansi_term::Colour::Red;
 use failure::Error;
 use futures::future::{self, Future};
 use tokio;
@@ -13,6 +12,7 @@ use tokio_threadpool::Builder;
 use super::common::{BoundedProc, BoundedRun};
 use crate::config::{Config, Repo, Selection};
 use crate::git::{AsyncGitResult, Git, GitCmd, GitResult};
+use crate::print;
 
 struct BoundedSync {
     dir: PathBuf,
@@ -74,7 +74,7 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
                         println!("\nThe following sync got error!");
                         has_error = true;
                     }
-                    println!("{}: {}", Red.paint(&key), msg);
+                    println!("{}: {}", print::warn(&key), msg);
                 }
             }
         })
