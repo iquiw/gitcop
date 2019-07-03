@@ -3,16 +3,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use failure::Error;
-use futures::future::{self, Future};
+use futures::future::Future;
 use tokio;
 use tokio::prelude::*;
 use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
 
-use super::common::{BoundedProc, BoundedRun};
+use super::common::{join_handles, BoundedProc, BoundedRun};
 use crate::config::{Config, Repo, Selection};
-use crate::git::{AsyncGitResult, Git, GitCmd, GitResult};
-use crate::print;
+use crate::git::{AsyncGitResult, Git, GitCmd};
 
 struct BoundedSync {
     dir: PathBuf,
@@ -65,18 +64,5 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
         }
     }
     pool.shutdown_on_idle().wait().unwrap();
-    future::join_all(handles)
-        .map(|results| {
-            let mut has_error = false;
-            for result in results {
-                if let GitResult::Error(key, msg) = result {
-                    if !has_error {
-                        println!("\nThe following sync got error!");
-                        has_error = true;
-                    }
-                    println!("{}: {}", print::warn(&key), msg);
-                }
-            }
-        })
-        .wait()
+    join_handles("sync", handles)
 }

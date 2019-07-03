@@ -3,12 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use failure::Error;
-use futures::future::{self, Future};
+use futures::future::Future;
 use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
 
-use super::common::{BoundedProc, BoundedRun};
-use crate::git::{AsyncGitResult, Git, GitCmd, GitResult};
+use super::common::{join_handles, BoundedProc, BoundedRun};
+use crate::git::{AsyncGitResult, Git, GitCmd};
 use crate::print;
 
 struct BoundedPull {
@@ -46,18 +46,5 @@ where
         )));
     }
     pool.shutdown_on_idle().wait().unwrap();
-    future::join_all(handles)
-        .map(|results| {
-            let mut has_error = false;
-            for result in results {
-                if let GitResult::Error(key, msg) = result {
-                    if !has_error {
-                        println!("\nThe following pull got error!");
-                        has_error = true;
-                    }
-                    println!("{}: {}", print::warn(&key), msg);
-                }
-            }
-        })
-        .wait()
+    join_handles("pull", handles)
 }

@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use failure::Error;
-use futures::future::Future;
+use futures::future::{self, Future};
 use futures::try_ready;
 use tokio::prelude::Poll;
 use tokio_sync::semaphore::{Permit, Semaphore};
+use tokio_threadpool::SpawnHandle;
 
 use crate::git::{AsyncGitResult, GitResult};
+use crate::print;
 
 pub struct BoundedProc<R> {
     semaphore: Arc<Semaphore>,
@@ -55,4 +57,21 @@ where
         }
         Ok(ready)
     }
+}
+
+pub fn join_handles(name: &str, handles: Vec<SpawnHandle<GitResult, Error>>) -> Result<(), Error> {
+    future::join_all(handles)
+        .map(|results| {
+            let mut has_error = false;
+            for result in results {
+                if let GitResult::Error(key, msg) = result {
+                    if !has_error {
+                        println!("\nThe following {} got error!", name);
+                        has_error = true;
+                    }
+                    println!("{}: {}", print::warn(&key), msg);
+                }
+            }
+        })
+        .wait()
 }
