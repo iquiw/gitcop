@@ -1,5 +1,5 @@
 use std::io::{stdout, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use failure::Error;
@@ -31,19 +31,22 @@ where
     let mut handles = vec![];
     for dir in dirs {
         let sem = Arc::clone(&sem);
-        let path = Path::new(dir);
+        let path = PathBuf::from(dir);
         if !path.is_dir() {
             let stdout = stdout();
             let mut handle = stdout.lock();
             writeln!(&mut handle, "{}: No such directory", print::warn(dir)).unwrap();
             continue;
         }
-        handles.push(pool.spawn_handle(BoundedProc::new(
-            BoundedPull {
-                dir: path.to_path_buf(),
-            },
-            sem,
-        )));
+        let mut git_path = path.clone();
+        git_path.push(".git");
+        if !git_path.exists() {
+            let stdout = stdout();
+            let mut handle = stdout.lock();
+            writeln!(&mut handle, "{}: Not git repository", print::warn(dir)).unwrap();
+            continue;
+        }
+        handles.push(pool.spawn_handle(BoundedProc::new(BoundedPull { dir: path }, sem)));
     }
     pool.shutdown_on_idle().wait().unwrap();
     join_handles("pull", handles)
