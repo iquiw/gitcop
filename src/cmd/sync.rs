@@ -1,17 +1,15 @@
-use std::io::stdout;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use failure::Error;
 use futures::future::Future;
-use tokio;
-use tokio::prelude::*;
 use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
 
 use super::common::{join_handles, BoundedProc, BoundedRun};
 use crate::config::{Config, Repo, Selection};
 use crate::git::{AsyncGitResult, Git, GitCmd};
+use crate::locked_println;
 
 struct BoundedSync {
     dir: PathBuf,
@@ -57,9 +55,7 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
                 )));
             }
             Err(err) => {
-                let stdout = stdout();
-                let mut handle = stdout.lock();
-                writeln!(&mut handle, "{}", err).unwrap();
+                locked_println!("{}", err);
             }
         }
     }

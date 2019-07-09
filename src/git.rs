@@ -1,4 +1,3 @@
-use std::io::{stdout, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -7,6 +6,7 @@ use futures::Future;
 use tokio_process::{CommandExt, OutputAsync};
 
 use crate::config::{Remote, Repo};
+use crate::locked_print;
 use crate::print;
 
 pub trait Git {
@@ -60,16 +60,12 @@ fn process_output(dir: &Path, out: OutputAsync) -> AsyncGitResult {
     let future = out.map_err(|e| e.into()).and_then(|output| {
         let success = output.status.success();
         let colorize = if success { print::good } else { print::warn };
-        let stdout = stdout();
-        let mut handle = stdout.lock();
-        write!(
-            &mut handle,
+        locked_print!(
             "[{}] {}{}",
             colorize(&key),
             String::from_utf8(output.stdout)?,
             String::from_utf8(output.stderr)?
-        )
-        .unwrap();
+        );
 
         if output.status.success() {
             Ok(GitResult::Success(key))

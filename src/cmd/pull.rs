@@ -1,4 +1,3 @@
-use std::io::{stdout, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -9,6 +8,7 @@ use tokio_threadpool::Builder;
 
 use super::common::{join_handles, BoundedProc, BoundedRun};
 use crate::git::{AsyncGitResult, Git, GitCmd};
+use crate::locked_println;
 use crate::print;
 
 struct BoundedPull {
@@ -33,17 +33,13 @@ where
         let sem = Arc::clone(&sem);
         let path = PathBuf::from(dir);
         if !path.is_dir() {
-            let stdout = stdout();
-            let mut handle = stdout.lock();
-            writeln!(&mut handle, "{}: No such directory", print::warn(dir)).unwrap();
+            locked_println!("{}: No such directory", print::warn(dir));
             continue;
         }
         let mut git_path = path.clone();
         git_path.push(".git");
         if !git_path.exists() {
-            let stdout = stdout();
-            let mut handle = stdout.lock();
-            writeln!(&mut handle, "{}: Not git repository", print::warn(dir)).unwrap();
+            locked_println!("{}: Not git repository", print::warn(dir));
             continue;
         }
         handles.push(pool.spawn_handle(BoundedProc::new(BoundedPull { dir: path }, sem)));
