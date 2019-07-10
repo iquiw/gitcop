@@ -1,19 +1,18 @@
-use ansi_term::Colour::{Green, Red};
-use ansi_term::{self, ANSIGenericString};
+use yansi::Paint;
 
-type Printable<'a> = ANSIGenericString<'a, str>;
+type Printable<'a> = Paint<&'a str>;
 
 pub fn color_init() {
     #[cfg(windows)]
-    let _ignore = ansi_term::enable_ansi_support();
+    let _ignore = Paint::enable_windows_ascii();
 }
 
 pub fn warn<'a>(s: &'a str) -> Printable<'a> {
-    Red.paint(s)
+    Paint::red(s)
 }
 
 pub fn good<'a>(s: &'a str) -> Printable<'a> {
-    Green.paint(s)
+    Paint::green(s)
 }
 
 #[macro_export]
