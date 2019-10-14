@@ -14,7 +14,7 @@ pub trait Git {
     fn pull(&self, dir: &Path) -> AsyncGitResult;
 }
 
-pub type AsyncGitResult = Box<Future<Item = GitResult, Error = Error> + Send>;
+pub type AsyncGitResult = Box<dyn Future<Item = GitResult, Error = Error> + Send>;
 
 pub enum GitResult {
     Success(String),
