@@ -1,11 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use failure::{format_err, Error};
 use futures::Future;
 use tokio_process::{CommandExt, OutputAsync};
 
-use crate::config::{Remote, Repo};
+use crate::config::{GitCmd, Remote, Repo};
 use crate::locked_print;
 use crate::print;
 
@@ -21,19 +21,9 @@ pub enum GitResult {
     Error(String, Error),
 }
 
-pub struct GitCmd {
-    path: PathBuf,
-}
-
-impl Default for GitCmd {
-    fn default() -> Self {
-        GitCmd { path: "git".into() }
-    }
-}
-
 impl Git for GitCmd {
     fn cloner(&self, dir: &Path, repo: &Repo) -> AsyncGitResult {
-        let future = Command::new(&self.path)
+        let future = Command::new(self.path())
             .arg("-c")
             .arg("color.ui=always")
             .arg("clone")
@@ -44,7 +34,7 @@ impl Git for GitCmd {
     }
 
     fn pull(&self, dir: &Path) -> AsyncGitResult {
-        let future = Command::new(&self.path)
+        let future = Command::new(self.path())
             .current_dir(dir)
             .arg("-c")
             .arg("color.ui=always")

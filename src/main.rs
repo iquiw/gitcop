@@ -62,7 +62,7 @@ fn main() {
         }
         ("pull", Some(sub_m)) => {
             if let Some(dirs) = sub_m.values_of("DIR") {
-                cmd::pull(dirs)
+                cmd::pull(cfg.git(), dirs)
             } else {
                 Ok(())
             }

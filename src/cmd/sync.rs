@@ -7,22 +7,22 @@ use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
 
 use super::common::{join_handles, BoundedProc, BoundedRun};
-use crate::config::{Config, Repo, Selection};
-use crate::git::{AsyncGitResult, Git, GitCmd};
+use crate::config::{Config, GitCmd, Repo, Selection};
+use crate::git::{AsyncGitResult, Git};
 use crate::locked_println;
 
 struct BoundedSync {
+    git: GitCmd,
     dir: PathBuf,
     repo: Repo,
 }
 
 impl BoundedRun for BoundedSync {
     fn run(&self) -> AsyncGitResult {
-        let git = GitCmd::default();
         if self.dir.is_dir() {
-            git.pull(&self.dir)
+            self.git.pull(&self.dir)
         } else {
-            git.cloner(&self.dir, &self.repo)
+            self.git.cloner(&self.dir, &self.repo)
         }
     }
 }
@@ -48,6 +48,7 @@ pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
                 let path = Path::new(&dir);
                 handles.push(pool.spawn_handle(BoundedProc::new(
                     BoundedSync {
+                        git: cfg.git().clone(),
                         dir: path.to_path_buf(),
                         repo: repo.clone(),
                     },

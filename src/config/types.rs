@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GitHub {
     pub user: String,
@@ -72,5 +74,26 @@ impl Remote for Selection<Repo> {
             Selection::Explicit(repo) => repo.url(),
             Selection::Optional(repo) => repo.url(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GitCmd {
+    path: PathBuf,
+}
+
+impl GitCmd {
+    pub fn new<P>(path: &P) -> Self where P: AsRef<Path> {
+        GitCmd { path: path.as_ref().to_path_buf() }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Default for GitCmd {
+    fn default() -> Self {
+        GitCmd { path: "git".into() }
     }
 }

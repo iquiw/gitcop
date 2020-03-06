@@ -1,13 +1,14 @@
+use std::path::PathBuf;
 use std::convert::TryFrom;
 
 use failure::Fail;
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use indexmap::IndexMap;
 
-use super::types::{GitHub, Repo};
+use super::types::{GitCmd, GitHub, Repo};
 
 #[derive(Debug, Fail)]
 pub enum ConfigError {
@@ -30,6 +31,8 @@ pub enum RepoSpec {
 
 #[derive(Debug, Deserialize)]
 pub struct ConfigInternal {
+    #[serde(default = "GitCmd::default", deserialize_with = "deserialize_gitcmd")]
+    pub git: GitCmd,
     pub directory: Option<String>,
     pub repositories: IndexMap<String, RepoSpec>,
     #[serde(rename = "optional-repositories")]
@@ -66,4 +69,12 @@ impl TryFrom<(&str, &RepoSpec)> for Repo {
             })
         }
     }
+}
+
+fn deserialize_gitcmd<'de, D>(d: D) -> Result<GitCmd, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: PathBuf = Deserialize::deserialize(d)?;
+    Ok(GitCmd::new(&value))
 }

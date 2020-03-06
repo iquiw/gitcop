@@ -11,16 +11,21 @@ use indexmap::{self, IndexMap};
 mod internal;
 mod types;
 use self::internal::ConfigInternal;
-pub use self::types::{GitHub, Remote, Repo, Selection};
+pub use self::types::{GitCmd, GitHub, Remote, Repo, Selection};
 use crate::print;
 
 #[derive(Debug)]
 pub struct Config {
+    git: GitCmd,
     dir: Option<PathBuf>,
     repos: IndexMap<String, Selection<Repo>>,
 }
 
 impl Config {
+    pub fn git(&self) -> &GitCmd {
+        &self.git
+    }
+
     pub fn dir(&self) -> Option<&PathBuf> {
         self.dir.as_ref()
     }
@@ -108,6 +113,7 @@ where
 
 pub fn parse_config(s: &str) -> Result<Config, Error> {
     let cfgi = toml::from_str::<ConfigInternal>(s)?;
+    let git = cfgi.git;
     let dir = cfgi.directory;
     let mut repo_map = IndexMap::new();
     for (key, val) in &cfgi.repositories {
@@ -121,6 +127,7 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
         }
     }
     Ok(Config {
+        git,
         dir: dir.map(|d| PathBuf::from(d)),
         repos: repo_map,
     })
@@ -147,6 +154,7 @@ repo = "magnars/dash.el"
 "#;
         let cfg = parse_config(s).unwrap();
 
+        assert_eq!(cfg.git(), &GitCmd::default());
         assert_eq!(cfg.dir(), None);
 
         let opt1 = cfg.repos.get("use-package");
@@ -236,6 +244,18 @@ magit = "magit"
     }
 
     #[test]
+    fn test_parse_config_with_custom_git() {
+        let s = r#"git = "/opt/bin/git"
+directory = "/tmp/foo"
+[repositories]
+"#;
+        let cfg = parse_config(s).unwrap();
+
+        assert_eq!(cfg.git(), &GitCmd::new(&Path::new("/opt/bin/git")));
+        assert_eq!(cfg.dir(), Some(&PathBuf::from("/tmp/foo")));
+    }
+
+    #[test]
     fn test_parse_config_invalid_repo() {
         let s = r#"repositories.foo = "bar/baz/foo""#;
         let result = parse_config(s);
@@ -262,6 +282,7 @@ magit = "magit"
     #[test]
     fn test_config_repos_iter_none() {
         let cfg = Config {
+            git: GitCmd::default(),
             dir: None,
             repos: IndexMap::new(),
         };
@@ -283,7 +304,11 @@ magit = "magit"
         let select = gh!("foo", "bar");
         let mut repos = IndexMap::new();
         repos.insert("one".to_string(), select.clone());
-        let cfg = Config { dir: None, repos };
+        let cfg = Config {
+            git: GitCmd::default(),
+            dir: None,
+            repos,
+        };
         let mut iter = cfg.repos(None);
         assert_eq!(iter.next(), Some(Ok(("one", select.as_ref()))));
         assert_eq!(iter.next(), None);
@@ -298,7 +323,11 @@ magit = "magit"
         repos.insert("one".to_string(), select1.clone());
         repos.insert("two".to_string(), select2.clone());
         repos.insert("three".to_string(), select3.clone());
-        let cfg = Config { dir: None, repos };
+        let cfg = Config {
+            git: GitCmd::default(),
+            dir: None,
+            repos,
+        };
         let mut iter = cfg.repos(None);
         assert_eq!(iter.next(), Some(Ok(("one", select1.as_ref()))));
         assert_eq!(iter.next(), Some(Ok(("two", select2.as_ref()))));
@@ -309,6 +338,7 @@ magit = "magit"
     #[test]
     fn test_config_repos_iter_none_selected() {
         let cfg = Config {
+            git: GitCmd::default(),
             dir: None,
             repos: IndexMap::new(),
         };
@@ -332,7 +362,11 @@ magit = "magit"
         repos.insert("one".to_string(), select1.clone());
         repos.insert("two".to_string(), select2.clone());
         repos.insert("three".to_string(), select3.clone());
-        let cfg = Config { dir: None, repos };
+        let cfg = Config {
+            git: GitCmd::default(),
+            dir: None,
+            repos,
+        };
 
         let names = vec!["one", "three"];
         let mut iter = cfg.repos(Some(&names));
@@ -350,7 +384,11 @@ magit = "magit"
         repos.insert("one".to_string(), select1.clone());
         repos.insert("two".to_string(), select2.clone());
         repos.insert("three".to_string(), select3.clone());
-        let cfg = Config { dir: None, repos };
+        let cfg = Config {
+            git: GitCmd::default(),
+            dir: None,
+            repos,
+        };
 
         let mut iter = cfg.repos(None);
         assert_eq!(iter.next(), Some(Ok(("one", select1.as_ref()))));
@@ -368,7 +406,11 @@ magit = "magit"
         repos.insert("one".to_string(), select1.clone());
         repos.insert("two".to_string(), select2.clone());
         repos.insert("three".to_string(), select3.clone());
-        let cfg = Config { dir: None, repos };
+        let cfg = Config {
+            git: GitCmd::default(),
+            dir: None,
+            repos,
+        };
 
         let names = vec!["two", "three"];
         let mut iter = cfg.repos(Some(&names));

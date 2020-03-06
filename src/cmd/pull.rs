@@ -7,22 +7,23 @@ use tokio_sync::semaphore::Semaphore;
 use tokio_threadpool::Builder;
 
 use super::common::{join_handles, BoundedProc, BoundedRun};
-use crate::git::{AsyncGitResult, Git, GitCmd};
+use crate::config::GitCmd;
+use crate::git::{AsyncGitResult, Git};
 use crate::locked_println;
 use crate::print;
 
 struct BoundedPull {
+    git: GitCmd,
     dir: PathBuf,
 }
 
 impl BoundedRun for BoundedPull {
     fn run(&self) -> AsyncGitResult {
-        let git = GitCmd::default();
-        git.pull(&self.dir)
+        self.git.pull(&self.dir)
     }
 }
 
-pub fn pull<'a, I>(dirs: I) -> Result<(), Error>
+pub fn pull<'a, I>(git: &GitCmd, dirs: I) -> Result<(), Error>
 where
     I: Iterator<Item = &'a str>,
 {
@@ -42,7 +43,13 @@ where
             locked_println!("{}: Not git repository", print::warn(dir));
             continue;
         }
-        handles.push(pool.spawn_handle(BoundedProc::new(BoundedPull { dir: path }, sem)));
+        handles.push(pool.spawn_handle(BoundedProc::new(
+            BoundedPull {
+                git: git.clone(),
+                dir: path,
+            },
+            sem,
+        )));
     }
     pool.shutdown_on_idle().wait().unwrap();
     join_handles("pull", handles)
