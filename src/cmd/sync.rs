@@ -2,64 +2,48 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use failure::Error;
-use futures::future::Future;
-use tokio_sync::semaphore::Semaphore;
-use tokio_threadpool::Builder;
+use tokio::sync::Semaphore;
 
-use super::common::{join_handles, BoundedProc, BoundedRun};
+use super::common::{bounded_run, join_handles};
 use crate::config::{Config, GitCmd, Repo, Selection};
-use crate::git::{AsyncGitResult, Git};
+use crate::git::{Git, GitResult};
 use crate::locked_println;
 
-struct BoundedSync {
-    git: GitCmd,
-    dir: PathBuf,
-    repo: Repo,
-}
-
-impl BoundedRun for BoundedSync {
-    fn run(&self) -> AsyncGitResult {
-        if self.dir.is_dir() {
-            self.git.pull(&self.dir)
-        } else {
-            self.git.cloner(&self.dir, &self.repo)
-        }
+async fn sync_one(git: GitCmd, dir: &Path, repo: &Repo) -> GitResult {
+    if dir.is_dir() {
+        git.pull(&dir).await
+    } else {
+        git.cloner(&dir, &repo).await
     }
 }
 
-pub fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
-    let pool = Builder::new().build();
+pub async fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
     let sem = Arc::new(Semaphore::new(10));
     let mut handles = vec![];
     for result in cfg.repos(names) {
         match result {
             Ok((dir, select)) => {
                 let repo = match select {
-                    Selection::Explicit(repo) => repo,
+                    Selection::Explicit(repo) => repo.clone(),
                     Selection::Optional(repo) => {
                         if Path::new(dir).is_dir() {
-                            repo
+                            repo.clone()
                         } else {
                             continue;
                         }
                     }
                 };
                 let sem = Arc::clone(&sem);
-                let path = Path::new(&dir);
-                handles.push(pool.spawn_handle(BoundedProc::new(
-                    BoundedSync {
-                        git: cfg.git().clone(),
-                        dir: path.to_path_buf(),
-                        repo: repo.clone(),
-                    },
-                    sem,
-                )));
+                let path = PathBuf::from(&dir);
+                let git = cfg.git().clone();
+                handles.push(tokio::spawn(async move {
+                    bounded_run(sync_one(git, &path, &repo), sem).await
+                }));
             }
             Err(err) => {
                 locked_println!("{}", err);
             }
         }
     }
-    pool.shutdown_on_idle().wait().unwrap();
-    join_handles("sync", handles)
+    join_handles("sync", handles).await
 }
