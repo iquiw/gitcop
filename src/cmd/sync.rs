@@ -7,7 +7,6 @@ use tokio::sync::Semaphore;
 use super::common::{bounded_run, join_handles};
 use crate::config::{Config, GitCmd, Repo, Selection};
 use crate::git::{Git, GitResult};
-use crate::locked_println;
 
 async fn sync_one(git: GitCmd, dir: &Path, repo: &Repo) -> GitResult {
     if dir.is_dir() {
@@ -41,7 +40,7 @@ pub async fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> 
                 }));
             }
             Err(err) => {
-                locked_println!("{}", err);
+                println!("{}", err);
             }
         }
     }

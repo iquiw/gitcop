@@ -9,7 +9,6 @@ use futures::Future;
 use tokio::process::Command;
 
 use crate::config::{GitCmd, Remote, Repo};
-use crate::locked_print;
 use crate::print;
 
 pub trait Git<'a> {
@@ -65,7 +64,7 @@ where
     let output = out.await?;
     let success = output.status.success();
     let colorize = if success { print::good } else { print::warn };
-    locked_print!(
+    print!(
         "[{}] {}{}",
         colorize(&key),
         String::from_utf8(output.stdout)?,
