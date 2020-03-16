@@ -7,7 +7,8 @@ use gitcop::cmd;
 use gitcop::config;
 use gitcop::print;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     print::color_init();
 
     let matches = clap_app!(myapp =>
@@ -62,14 +63,14 @@ fn main() {
         }
         ("pull", Some(sub_m)) => {
             if let Some(dirs) = sub_m.values_of("DIR") {
-                cmd::pull(cfg.git(), dirs)
+                cmd::pull(cfg.git(), dirs).await
             } else {
                 Ok(())
             }
         }
         ("sync", Some(sub_m)) => {
             let names = sub_m.values_of("REPO").map(|vs| vs.collect());
-            cmd::sync(&cfg, names.as_ref())
+            cmd::sync(&cfg, names.as_ref()).await
         }
         _ => Ok(()),
     }

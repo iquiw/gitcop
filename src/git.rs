@@ -1,67 +1,82 @@
+use std::fmt;
+use std::io;
 use std::path::Path;
-use std::process::Command;
+use std::process::Output;
 
-use failure::{format_err, Error};
+use failure::{Error, Fail};
+use futures::future::BoxFuture;
 use futures::Future;
-use tokio_process::{CommandExt, OutputAsync};
+use tokio::process::Command;
 
 use crate::config::{GitCmd, Remote, Repo};
-use crate::locked_print;
 use crate::print;
 
-pub trait Git {
-    fn cloner(&self, dir: &Path, repo: &Repo) -> AsyncGitResult;
-    fn pull(&self, dir: &Path) -> AsyncGitResult;
+pub trait Git<'a> {
+    fn cloner(&'a self, dir: &Path, repo: &Repo) -> AsyncGitResult<'a>;
+    fn pull(&'a self, dir: &Path) -> AsyncGitResult<'a>;
 }
 
-pub type AsyncGitResult = Box<dyn Future<Item = GitResult, Error = Error> + Send>;
+pub type GitResult = Result<String, Error>;
+pub type AsyncGitResult<'a> = BoxFuture<'a, GitResult>;
 
-pub enum GitResult {
-    Success(String),
-    Error(String, Error),
+#[derive(Debug, Fail)]
+pub struct GitError {
+    pub key: String,
+    pub msg: String,
 }
 
-impl Git for GitCmd {
-    fn cloner(&self, dir: &Path, repo: &Repo) -> AsyncGitResult {
+impl fmt::Display for GitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.key, self.msg)
+    }
+}
+
+impl<'a> Git<'a> for GitCmd {
+    fn cloner(&'a self, dir: &Path, repo: &Repo) -> AsyncGitResult<'a> {
         let future = Command::new(self.path())
             .arg("-c")
             .arg("color.ui=always")
             .arg("clone")
             .arg(repo.url())
             .arg(dir)
-            .output_async();
-        process_output(dir, future)
+            .output();
+        let key = dir.to_string_lossy().into_owned();
+        Box::pin(process_output(key, future))
     }
 
-    fn pull(&self, dir: &Path) -> AsyncGitResult {
+    fn pull(&'a self, dir: &Path) -> AsyncGitResult<'a> {
         let future = Command::new(self.path())
             .current_dir(dir)
             .arg("-c")
             .arg("color.ui=always")
             .arg("pull")
             .arg("--ff-only")
-            .output_async();
-        process_output(dir, future)
+            .output();
+        let key = dir.to_string_lossy().into_owned();
+        Box::pin(process_output(key, future))
     }
 }
 
-fn process_output(dir: &Path, out: OutputAsync) -> AsyncGitResult {
-    let key = dir.to_string_lossy().into_owned();
-    let future = out.map_err(|e| e.into()).and_then(|output| {
-        let success = output.status.success();
-        let colorize = if success { print::good } else { print::warn };
-        locked_print!(
-            "[{}] {}{}",
-            colorize(&key),
-            String::from_utf8(output.stdout)?,
-            String::from_utf8(output.stderr)?
-        );
+async fn process_output<F>(key: String, out: F) -> Result<String, Error>
+where
+    F: Future<Output = Result<Output, io::Error>> + Send,
+{
+    let output = out.await?;
+    let success = output.status.success();
+    let colorize = if success { print::good } else { print::warn };
+    print!(
+        "[{}] {}{}",
+        colorize(&key),
+        String::from_utf8(output.stdout)?,
+        String::from_utf8(output.stderr)?
+    );
 
-        if output.status.success() {
-            Ok(GitResult::Success(key))
-        } else {
-            Ok(GitResult::Error(key, format_err!("{}", output.status)))
-        }
-    });
-    Box::new(future)
+    if output.status.success() {
+        Ok(key)
+    } else {
+        Err(GitError {
+            key,
+            msg: format!("{}", output.status).to_string(),
+        })?
+    }
 }

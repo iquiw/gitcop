@@ -2,55 +2,37 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use failure::Error;
-use futures::future::Future;
-use tokio_sync::semaphore::Semaphore;
-use tokio_threadpool::Builder;
+use tokio::sync::Semaphore;
 
-use super::common::{join_handles, BoundedProc, BoundedRun};
+use super::common::{bounded_run, join_handles};
 use crate::config::GitCmd;
-use crate::git::{AsyncGitResult, Git};
-use crate::locked_println;
+use crate::git::Git;
 use crate::print;
 
-struct BoundedPull {
-    git: GitCmd,
-    dir: PathBuf,
-}
-
-impl BoundedRun for BoundedPull {
-    fn run(&self) -> AsyncGitResult {
-        self.git.pull(&self.dir)
-    }
-}
-
-pub fn pull<'a, I>(git: &GitCmd, dirs: I) -> Result<(), Error>
+pub async fn pull<'a, I>(git: &GitCmd, dirs: I) -> Result<(), Error>
 where
     I: Iterator<Item = &'a str>,
 {
-    let pool = Builder::new().build();
     let sem = Arc::new(Semaphore::new(10));
     let mut handles = vec![];
     for dir in dirs {
         let sem = Arc::clone(&sem);
         let path = PathBuf::from(dir);
         if !path.is_dir() {
-            locked_println!("{}: No such directory", print::warn(dir));
+            println!("{}: No such directory", print::warn(dir));
             continue;
         }
         let mut git_path = path.clone();
         git_path.push(".git");
         if !git_path.exists() {
-            locked_println!("{}: Not git repository", print::warn(dir));
+            println!("{}: Not git repository", print::warn(dir));
             continue;
         }
-        handles.push(pool.spawn_handle(BoundedProc::new(
-            BoundedPull {
-                git: git.clone(),
-                dir: path,
-            },
-            sem,
-        )));
+        let git = git.clone();
+        let path = PathBuf::from(&dir);
+        handles.push(tokio::spawn(
+            async move { bounded_run(git.pull(&path), sem).await },
+        ));
     }
-    pool.shutdown_on_idle().wait().unwrap();
-    join_handles("pull", handles)
+    join_handles("pull", handles).await
 }
