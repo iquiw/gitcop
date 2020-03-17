@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::convert::TryFrom;
+use std::path::PathBuf;
 
 use failure::Fail;
 use lazy_static::lazy_static;
@@ -31,7 +31,7 @@ pub enum RepoSpec {
 
 #[derive(Debug, Deserialize)]
 pub struct ConfigInternal {
-    #[serde(default = "GitCmd::default", deserialize_with = "deserialize_gitcmd")]
+    #[serde(default = "GitCmd::default")]
     pub git: GitCmd,
     pub directory: Option<String>,
     pub repositories: IndexMap<String, RepoSpec>,
@@ -71,10 +71,13 @@ impl TryFrom<(&str, &RepoSpec)> for Repo {
     }
 }
 
-fn deserialize_gitcmd<'de, D>(d: D) -> Result<GitCmd, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let value: PathBuf = Deserialize::deserialize(d)?;
-    Ok(GitCmd::new(&value))
+
+impl<'de> Deserialize<'de> for GitCmd {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = PathBuf::deserialize(d)?;
+        Ok(GitCmd::new(&value))
+    }
 }
