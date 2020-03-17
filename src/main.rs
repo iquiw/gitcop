@@ -63,7 +63,7 @@ async fn main() {
         }
         ("pull", Some(sub_m)) => {
             if let Some(dirs) = sub_m.values_of("DIR") {
-                cmd::pull(cfg.git(), dirs).await
+                cmd::pull(&cfg, dirs).await
             } else {
                 Ok(())
             }

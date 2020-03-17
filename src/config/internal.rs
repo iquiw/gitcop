@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use failure::Fail;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::de;
 use serde::{Deserialize, Deserializer};
 
 use indexmap::IndexMap;
@@ -16,6 +17,21 @@ pub enum ConfigError {
     InvalidRepo { name: String },
     #[fail(display = "unknown repo type: {}", type_)]
     UnknownType { type_: String },
+}
+
+#[derive(Debug)]
+pub struct Concurrency(u16);
+
+impl Concurrency {
+    pub fn value(&self) -> u16 {
+        self.0
+    }
+}
+
+impl Default for Concurrency {
+    fn default() -> Self {
+        Concurrency(10)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +50,8 @@ pub struct ConfigInternal {
     #[serde(default = "GitCmd::default")]
     pub git: GitCmd,
     pub directory: Option<String>,
+    #[serde(default)]
+    pub concurrency: Concurrency,
     pub repositories: IndexMap<String, RepoSpec>,
     #[serde(rename = "optional-repositories")]
     pub optional_repositories: Option<IndexMap<String, RepoSpec>>,
@@ -71,7 +89,6 @@ impl TryFrom<(&str, &RepoSpec)> for Repo {
     }
 }
 
-
 impl<'de> Deserialize<'de> for GitCmd {
     fn deserialize<D>(d: D) -> Result<Self, D::Error>
     where
@@ -79,5 +96,21 @@ impl<'de> Deserialize<'de> for GitCmd {
     {
         let value = PathBuf::deserialize(d)?;
         Ok(GitCmd::new(&value))
+    }
+}
+
+impl<'de> Deserialize<'de> for Concurrency {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: u16 = Deserialize::deserialize(d)?;
+        if value == 0 {
+            return Err(de::Error::invalid_value(
+                de::Unexpected::Unsigned(0),
+                &"positive integer",
+            ));
+        }
+        Ok(Concurrency(value))
     }
 }

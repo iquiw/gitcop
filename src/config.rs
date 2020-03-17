@@ -10,7 +10,7 @@ use indexmap::{self, IndexMap};
 
 mod internal;
 mod types;
-use self::internal::ConfigInternal;
+use self::internal::{Concurrency, ConfigInternal};
 pub use self::types::{GitCmd, GitHub, Remote, Repo, Selection};
 use crate::print;
 
@@ -18,6 +18,7 @@ use crate::print;
 pub struct Config {
     git: GitCmd,
     dir: Option<PathBuf>,
+    concur: Concurrency,
     repos: IndexMap<String, Selection<Repo>>,
 }
 
@@ -28,6 +29,10 @@ impl Config {
 
     pub fn dir(&self) -> Option<&PathBuf> {
         self.dir.as_ref()
+    }
+
+    pub fn concurrency(&self) -> usize {
+        self.concur.value() as usize
     }
 
     pub fn is_known(&self, name: &str) -> bool {
@@ -129,13 +134,16 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
     Ok(Config {
         git,
         dir: dir.map(|d| PathBuf::from(d)),
+        concur: cfgi.concurrency,
         repos: repo_map,
     })
 }
 
 #[cfg(test)]
 mod test {
+    use crate::config::internal::Concurrency;
     use crate::config::*;
+
     #[test]
     fn test_parse_config_normal_form() {
         let s = r#"[repositories]
@@ -244,15 +252,32 @@ magit = "magit"
     }
 
     #[test]
-    fn test_parse_config_with_custom_git() {
+    fn test_parse_config_with_custom_git_dir_concur() {
         let s = r#"git = "/opt/bin/git"
 directory = "/tmp/foo"
+concurrency = 123
 [repositories]
 "#;
         let cfg = parse_config(s).unwrap();
 
         assert_eq!(cfg.git(), &GitCmd::new(&Path::new("/opt/bin/git")));
         assert_eq!(cfg.dir(), Some(&PathBuf::from("/tmp/foo")));
+        assert_eq!(cfg.concurrency(), 123);
+    }
+
+    #[test]
+    fn test_parse_config_with_invalid_concur() {
+        let result = parse_config("concurrency = -1\n[repositories]");
+        assert_eq!(result.is_err(), true);
+
+        let result = parse_config("concurrency = 0\n[repositories]");
+        assert_eq!(result.is_err(), true);
+
+        let result = parse_config("concurrency = 65536\n[repositories]");
+        assert_eq!(result.is_err(), true);
+
+        let result = parse_config("concurrency = NaN\n[repositories]");
+        assert_eq!(result.is_err(), true);
     }
 
     #[test]
@@ -284,6 +309,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos: IndexMap::new(),
         };
         let mut iter = cfg.repos(None);
@@ -307,6 +333,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos,
         };
         let mut iter = cfg.repos(None);
@@ -326,6 +353,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos,
         };
         let mut iter = cfg.repos(None);
@@ -340,6 +368,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos: IndexMap::new(),
         };
         let names = vec!["one"];
@@ -365,6 +394,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos,
         };
 
@@ -387,6 +417,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos,
         };
 
@@ -409,6 +440,7 @@ directory = "/tmp/foo"
         let cfg = Config {
             git: GitCmd::default(),
             dir: None,
+            concur: Concurrency::default(),
             repos,
         };
 

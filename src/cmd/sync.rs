@@ -20,7 +20,7 @@ where
 }
 
 pub async fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> {
-    let sem = Arc::new(Semaphore::new(10));
+    let sem = Arc::new(Semaphore::new(cfg.concurrency()));
     let mut handles = vec![];
     for result in cfg.repos(names) {
         match result {
