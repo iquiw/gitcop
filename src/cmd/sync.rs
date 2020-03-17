@@ -5,10 +5,13 @@ use failure::Error;
 use tokio::sync::Semaphore;
 
 use super::common::{bounded_run, join_handles};
-use crate::config::{Config, GitCmd, Repo, Selection};
+use crate::config::{Config, Repo, Selection};
 use crate::git::{Git, GitResult};
 
-async fn sync_one(git: GitCmd, dir: &Path, repo: &Repo) -> GitResult {
+async fn sync_one<'a, G>(git: &'a G, dir: &Path, repo: &Repo) -> GitResult
+where
+    G: Git<'a>,
+{
     if dir.is_dir() {
         git.pull(&dir).await
     } else {
@@ -36,7 +39,7 @@ pub async fn sync(cfg: &Config, names: Option<&Vec<&str>>) -> Result<(), Error> 
                 let path = PathBuf::from(&dir);
                 let git = cfg.git().clone();
                 handles.push(tokio::spawn(async move {
-                    bounded_run(sync_one(git, &path, &repo), sem).await
+                    bounded_run(sync_one(&git, &path, &repo), sem).await
                 }));
             }
             Err(err) => {
