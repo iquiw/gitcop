@@ -1,11 +1,11 @@
 use std::fmt;
+use std::future::Future;
 use std::io;
 use std::path::Path;
 use std::process::Output;
 
 use failure::{Error, Fail};
 use futures::future::BoxFuture;
-use futures::Future;
 use tokio::process::Command;
 
 use crate::config::{GitCmd, Remote, Repo};
