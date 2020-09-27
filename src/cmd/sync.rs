@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use failure::Error;
+use anyhow::Error;
 use tokio::sync::Semaphore;
 
 use super::common::{bounded_run, join_handles};

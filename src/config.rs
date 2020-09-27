@@ -5,7 +5,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::slice;
 
-use failure::{Error, Fail};
+use anyhow::Error;
 use indexmap::{self, IndexMap};
 
 mod internal;
@@ -67,10 +67,12 @@ pub enum ReposIter<'a> {
     All(ReposAll<'a>),
 }
 
-#[derive(Debug, Fail, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct RepoNotFound {
     name: String,
 }
+
+impl std::error::Error for RepoNotFound {}
 
 impl fmt::Display for RepoNotFound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

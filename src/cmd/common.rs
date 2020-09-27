@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use failure::Error;
+use anyhow::Error;
 use futures::future;
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
