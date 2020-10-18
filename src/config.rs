@@ -84,7 +84,7 @@ impl<'a> Iterator for ReposIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             ReposIter::Selected(repo_sel) => {
-                while let Some(n) = repo_sel.names.next() {
+                if let Some(n) = repo_sel.names.next() {
                     if let Some(sel) = repo_sel.cfg.repos.get(*n) {
                         if let Selection::Optional(repo) = sel {
                             return Some(Ok((n, Selection::Explicit(repo))));
@@ -133,7 +133,7 @@ pub fn parse_config(s: &str) -> Result<Config, Error> {
     }
     Ok(Config {
         git,
-        dir: dir.map(|d| PathBuf::from(d)),
+        dir: dir.map(PathBuf::from),
         concur: cfgi.concurrency,
         repos: repo_map,
     })

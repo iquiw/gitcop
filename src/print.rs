@@ -7,10 +7,10 @@ pub fn color_init() {
     let _ignore = Paint::enable_windows_ascii();
 }
 
-pub fn warn<'a>(s: &'a str) -> Printable<'a> {
+pub fn warn(s: &str) -> Printable<'_> {
     Paint::red(s)
 }
 
-pub fn good<'a>(s: &'a str) -> Printable<'a> {
+pub fn good(s: &str) -> Printable<'_> {
     Paint::green(s)
 }

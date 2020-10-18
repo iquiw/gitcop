@@ -76,7 +76,7 @@ where
     } else {
         Err(GitError {
             key,
-            msg: format!("{}", output.status).to_string(),
-        })?
+            msg: format!("{}", output.status),
+        }.into())
     }
 }
