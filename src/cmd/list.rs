@@ -41,7 +41,7 @@ pub fn list_unknown(cfg: &Config) -> Result<(), Error> {
             }
             let file_name = entry.file_name();
             let name = file_name.to_string_lossy();
-            if !cfg.is_known(&name) && !name.starts_with(".") {
+            if !cfg.is_known(&name) && !name.starts_with('.') {
                 println!("{}", name);
             }
         }
