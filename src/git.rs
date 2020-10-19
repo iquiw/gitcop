@@ -4,7 +4,7 @@ use std::io;
 use std::path::Path;
 use std::process::Output;
 
-use failure::{Error, Fail};
+use anyhow::Error;
 use futures::future::BoxFuture;
 use tokio::process::Command;
 
@@ -19,11 +19,13 @@ pub trait Git<'a> {
 pub type GitResult = Result<String, Error>;
 pub type AsyncGitResult<'a> = BoxFuture<'a, GitResult>;
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub struct GitError {
     pub key: String,
     pub msg: String,
 }
+
+impl std::error::Error for GitError {}
 
 impl fmt::Display for GitError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

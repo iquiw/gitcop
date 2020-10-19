@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
-use failure::Fail;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::de;
@@ -11,11 +10,11 @@ use indexmap::IndexMap;
 
 use super::types::{GitCmd, GitHub, Repo};
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[fail(display = "invalid repo name: {}", name)]
+    #[error("invalid repo name: {name:}")]
     InvalidRepo { name: String },
-    #[fail(display = "unknown repo type: {}", type_)]
+    #[error("unknown repo type: {type_:}")]
     UnknownType { type_: String },
 }
 
