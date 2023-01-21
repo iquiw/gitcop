@@ -13,9 +13,9 @@ where
     G: Git<'a>,
 {
     if dir.is_dir() {
-        git.pull(&dir).await
+        git.pull(dir).await
     } else {
-        git.cloner(&dir, &repo).await
+        git.cloner(dir, repo).await
     }
 }
 

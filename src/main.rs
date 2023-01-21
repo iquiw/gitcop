@@ -1,7 +1,7 @@
 use std::env;
 use std::process::exit;
 
-use clap::{clap_app, crate_name, crate_version, AppSettings};
+use clap::{crate_name, crate_version, Arg, ArgAction, Command};
 
 use gitcop::cmd;
 use gitcop::config;
@@ -11,24 +11,44 @@ use gitcop::print;
 async fn main() {
     print::color_init();
 
-    let matches = clap_app!(myapp =>
-      (name: crate_name!())
-      (version: crate_version!())
-      (setting: AppSettings::ArgRequiredElseHelp)
-      (setting: AppSettings::ColorAuto)
-      (@subcommand list =>
-        (about: "List repos")
-        (@arg default: -d --default "List default repositories only")
-        (@arg optional: -o --optional "List optional repositories only")
-        (@arg unknown: -u --unknown "List unknown directories"))
-      (@subcommand pull =>
-        (about: "Pull in directories")
-        (@arg DIR: +required ... "Directories to be pulled"))
-      (@subcommand sync =>
-        (about: "Sync repos")
-        (@arg REPO: ... "Name of repos"))
-    )
-    .get_matches();
+    let matches = Command::new(crate_name!())
+        .version(crate_version!())
+        .arg_required_else_help(true)
+        .subcommands([
+            Command::new("list")
+                .about("List repos")
+                .arg(
+                    Arg::new("default")
+                        .short('d')
+                        .long("default")
+                        .action(ArgAction::SetTrue)
+                        .help("List default repositories only"),
+                )
+                .arg(
+                    Arg::new("optional")
+                        .short('o')
+                        .long("optional")
+                        .action(ArgAction::SetTrue)
+                        .help("List optional repositories only"),
+                )
+                .arg(
+                    Arg::new("unknown")
+                        .short('u')
+                        .long("unknown")
+                        .action(ArgAction::SetTrue)
+                        .help("List unknown directories"),
+                ),
+            Command::new("pull").about("Pull in directories").arg(
+                Arg::new("DIR")
+                    .required(true)
+                    .action(ArgAction::Append)
+                    .num_args(1..),
+            ),
+            Command::new("sync")
+                .about("Sync repos")
+                .arg(Arg::new("REPO").action(ArgAction::Append).num_args(0..)),
+        ])
+        .get_matches();
 
     let cfg = match config::load_config(".gitcop.toml") {
         Ok(cfg) => cfg,
@@ -48,12 +68,12 @@ async fn main() {
         }
     }
     match matches.subcommand() {
-        ("list", Some(sub_m)) => {
-            if sub_m.is_present("unknown") {
+        Some(("list", sub_m)) => {
+            if sub_m.get_flag("unknown") {
                 cmd::list_unknown(&cfg)
             } else {
-                let mut default = sub_m.is_present("default");
-                let mut optional = sub_m.is_present("optional");
+                let mut default = sub_m.get_flag("default");
+                let mut optional = sub_m.get_flag("optional");
                 if !default && !optional {
                     default = true;
                     optional = true;
@@ -61,16 +81,19 @@ async fn main() {
                 cmd::list(&cfg, default, optional)
             }
         }
-        ("pull", Some(sub_m)) => {
-            if let Some(dirs) = sub_m.values_of("DIR") {
-                cmd::pull(&cfg, dirs).await
+        Some(("pull", sub_m)) => {
+            if let Some(dirs) = sub_m.get_many::<String>("DIR") {
+                cmd::pull(&cfg, dirs.map(|s| s.as_str())).await
             } else {
                 Ok(())
             }
         }
-        ("sync", Some(sub_m)) => {
-            let names = sub_m.values_of("REPO").map(|vs| vs.collect());
-            cmd::sync(&cfg, names.as_ref()).await
+        Some(("sync", sub_m)) => {
+            if let Some(names) = sub_m.get_many::<String>("REPO") {
+                cmd::sync(&cfg, Some(&names.map(|s| s.as_str()).collect())).await
+            } else {
+                cmd::sync(&cfg, None).await
+            }
         }
         _ => Ok(()),
     }

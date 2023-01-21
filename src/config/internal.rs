@@ -75,7 +75,7 @@ impl TryFrom<(&str, &RepoSpec)> for Repo {
                 }
             }
         };
-        if let Some(cap) = RE.captures(&spec) {
+        if let Some(cap) = RE.captures(spec) {
             Ok(Repo::GitHub(GitHub::new(
                 cap.get(1).unwrap().as_str(),
                 cap.get(2).map(|m| m.as_str()).unwrap_or(key),
