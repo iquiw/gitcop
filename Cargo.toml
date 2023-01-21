@@ -2,11 +2,11 @@
 name = "gitcop"
 version = "0.3.0"
 authors = ["Iku Iwasa <iku.iwasa@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0.32"
-clap = "2.33.0"
+clap = { version = "4.1.1", features = ["cargo"] }
 futures = "0.3.4"
 indexmap = { version = "1.0.2", features = ["serde-1"] }
 lazy_static = "1.3.0"
