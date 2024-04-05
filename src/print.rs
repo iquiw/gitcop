@@ -1,16 +1,14 @@
-use yansi::Paint;
+use yansi::{Paint, Painted};
 
-type Printable<'a> = Paint<&'a str>;
+type Printable<'a> = Painted<&'a str>;
 
 pub fn color_init() {
-    #[cfg(windows)]
-    let _ignore = Paint::enable_windows_ascii();
 }
 
 pub fn warn(s: &str) -> Printable<'_> {
-    Paint::red(s)
+    s.red()
 }
 
 pub fn good(s: &str) -> Printable<'_> {
-    Paint::green(s)
+    s.green()
 }
