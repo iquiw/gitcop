@@ -55,15 +55,15 @@ pub enum Selection<T> {
 impl<T> Selection<T> {
     pub fn repo(&self) -> &T {
         match self {
-            Selection::Explicit(ref x) => x,
-            Selection::Optional(ref x) => x,
+            Selection::Explicit(x) => x,
+            Selection::Optional(x) => x,
         }
     }
 
     pub fn as_ref(&self) -> Selection<&T> {
         match self {
-            Selection::Explicit(ref x) => Selection::Explicit(x),
-            Selection::Optional(ref x) => Selection::Optional(x),
+            Selection::Explicit(x) => Selection::Explicit(x),
+            Selection::Optional(x) => Selection::Optional(x),
         }
     }
 }
